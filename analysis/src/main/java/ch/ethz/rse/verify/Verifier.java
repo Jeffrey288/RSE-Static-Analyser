@@ -56,11 +56,31 @@ public class Verifier extends AVerifier {
 		this.c = c;
 
 		// pointer analysis
+		// 1. executes pointer analysis,
 		this.pointsTo = new PointsToInitializer(this.c);
 	}
 
+	// 2. runs numerical analysis
 	protected void runNumericalAnalysis(VerificationProperty property) {
 		// TODO: FILL THIS OUT
+
+		// - You may assume the class you analyze only has a single method in addition to
+		//   its constructor (called <init> in Soot). You may assume that the constructor
+		//   is empty. 
+		// - You can assume all analyzed methods only have integer parameters (in
+		//   particular, they cannot have Frog parameters).
+
+		for (SootMethod method : this.c.getMethods()) {
+
+			if (method.getName().contains("<init>")) {
+				// skip constructor of the class
+				continue;
+			}
+			
+			NumericalAnalysis numericalAnalysis = new NumericalAnalysis(method, property, pointsTo);
+
+		}
+
 	}
 
 	@Override

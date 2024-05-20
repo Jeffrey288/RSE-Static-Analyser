@@ -15,6 +15,7 @@ import soot.IntegerType;
 import soot.Local;
 import soot.PointsToAnalysis;
 import soot.SootMethod;
+import soot.Unit;
 import soot.Value;
 import soot.jimple.ParameterRef;
 import soot.jimple.internal.JimpleLocal;
@@ -54,7 +55,16 @@ public class EnvironmentGenerator {
 		// populate this.ints
 
 		// TODO: FILL THIS OUT
-
+		// TODO: how to use pointsTo?
+		logger.debug("Building environment...");
+		for (Local local: this.method.getActiveBody().getLocals()) {
+			logger.debug(local.getName() + " " + local.getType().toString());
+			if (local.getType().toString() == "int") {
+				this.ints.add(local.getName());
+			}
+		}
+		
+		logger.debug(this.ints.toString());
 		String ints_arr[] = Iterables.toArray(this.ints, String.class);
 		
 		String reals[] = {}; // we are not analyzing real numbers

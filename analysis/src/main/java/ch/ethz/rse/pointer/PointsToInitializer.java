@@ -19,6 +19,7 @@ import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
 import soot.Value;
+import soot.JastAddJ.Expr;
 import soot.jimple.IntConstant;
 import soot.jimple.InvokeExpr;
 import soot.jimple.internal.JInvokeStmt;
@@ -53,24 +54,67 @@ public class PointsToInitializer {
 	 */
 	private final Multimap<SootMethod, FrogInitializer> perMethod = HashMultimap.create();
 
+	// CONSTRUCTOR
 	public PointsToInitializer(SootClass c) {
 		this.c = c;
 		logger.debug("Running points-to analysis on " + c.getName());
 		this.pointsTo = new PointsToAnalysisWrapper(c);
 		logger.debug("Analyzing initializers in " + c.getName());
 		this.analyzeAllInitializers();
-	}
+	} 	
+		
 
 	private void analyzeAllInitializers() {
 		for (SootMethod method : this.c.getMethods()) {
 
 			if (method.getName().contains("<init>")) {
 				// skip constructor of the class
+				// e.g. <Foo: void <init>()>
 				continue;
 			}
 
 			// populate data structures perMethod and initializers
 			// TODO: FILL THIS OUT
+
+			/**
+			 * Usually the code is in the form of two separate statmenets:
+			 * $r0 = new ch.ethz.rse.Frog
+			 * specialinvoke $r0.<ch.ethz.rse.Frog: void <init>(int)>(3)
+			 */
+			int num_initializers = 0;
+			for (Unit unit: method.getActiveBody().getUnits()) { // a statement
+				logger.debug(unit.toString());
+				if (unit instanceof JInvokeStmt) { // assumpiton: .sell or constructor
+					logger.debug("We have a JInvokeStmt!");
+					JInvokeStmt stmt = (JInvokeStmt) unit;
+					InvokeExpr invokeExpr = stmt.getInvokeExpr();
+					if (invokeExpr instanceof JSpecialInvokeExpr) {
+						logger.debug("We have a JSpecialInvokeExpr!");
+						JSpecialInvokeExpr expr = (JSpecialInvokeExpr) invokeExpr; // assumption: must be Frog
+						// assumption: the constructor Frog takes as arguments (production_cost) only integer constants (never local variables)
+						// 		you can put a constant expression in the constructor in the master solution, but still
+						//		it works: new Frog((int) (1+3/4.0+2)*1); is converted to specialinvoke $r0.<ch.ethz.rse.Frog: void <init>(int)>(3)
+						logger.debug(expr.toString());
+						logger.debug(expr.getArg(0).toString());
+						logger.debug("" + ((IntConstant) expr.getArg(0)).value);
+						FrogInitializer initializer = new FrogInitializer(stmt, num_initializers++, ((IntConstant) expr.getArg(0)).value);
+						perMethod.put(method, initializer);
+
+						// TODO: confirm whether this works
+						// I think this is wrong but I have no idea how to change it
+						// nor how to use it actually
+						// Node: Represents every node in the pointer assignment graph.
+						// https://plg.uwaterloo.ca/~olhotak/pubs/cc03.pdf#page=4
+						Local local = (Local) expr.getBaseBox().getValue(); 
+						logger.debug(local.toString());
+						logger.debug(pointsTo.getNodes(local).toString());
+						for (Node node: pointsTo.getNodes(local)) {
+							initializers.put(node, initializer);
+						}
+					}
+				}
+			}
+
 		}
 	}
 
@@ -80,6 +124,7 @@ public class PointsToInitializer {
 		return this.perMethod.get(method);
 	}
 
+	// base points to some nodes, and each node point to one initializer
 	public List<FrogInitializer> pointsTo(Local base) {
 		Collection<Node> nodes = this.pointsTo.getNodes(base);
 		List<FrogInitializer> initializers = new LinkedList<FrogInitializer>();
