@@ -17,10 +17,16 @@ public class Complex_Test_Safe {
     Frog frog_with_pants = new Frog(2);
     frog_with_pants.sell(2);
 
-    Frog frog_with_big_tongue = new Frog(20);
+    Frog frog_with_big_tongue = new Frog(40);
 
-    for (int k = 0; k < 100; k++) {
-      i *= -(i + j);
+    for (int k = 0; k + i < 100; k++) {
+      i *= -1 * (i + j);
+      if (i > 3 || k > 10) {
+        frog_with_big_tongue = new Frog(20);
+      } else {
+        frog_with_big_tongue = new Frog(10);
+      }
+      frog_with_big_tongue.sell(15);
     }
     if (i < 1) {
       frog_with_hat = frog_with_pants;

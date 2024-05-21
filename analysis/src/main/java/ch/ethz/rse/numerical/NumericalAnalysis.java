@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import apron.Abstract1;
 import apron.ApronException;
+import apron.Coeff;
 import apron.Environment;
 import apron.Manager;
 import apron.MpqScalar;
@@ -126,7 +127,7 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 		this.property = property;
 
 		this.pointsTo = pointsTo;
-		
+
 		this.method = method;
 
 		this.env = new EnvironmentGenerator(method, pointsTo).getEnvironment();
@@ -138,7 +139,8 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 		// perform analysis by calling into super-class
 		logger.info("Analyzing {} in {}", method.getName(), method.getDeclaringClass().getName());
-		doAnalysis(); // calls newInitialFlow, entryInitialFlow, merge, flowThrough, and stops when a fixed point is reached
+		doAnalysis(); // calls newInitialFlow, entryInitialFlow, merge, flowThrough, and stops when a
+						// fixed point is reached
 	}
 
 	/**
@@ -172,12 +174,14 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 	@Override
 	protected NumericalStateWrapper newInitialFlow() {
 		// should be bottom (only entry flows are not bottom originally)
+		logger.debug("newInitalFlow was called!");
 		return NumericalStateWrapper.bottom(man, env);
 	}
 
 	@Override
 	protected NumericalStateWrapper entryInitialFlow() {
 		// state of entry points into function
+		logger.debug("entryInitalFlow was called!");
 		NumericalStateWrapper ret = NumericalStateWrapper.top(man, env);
 
 		// TODO: MAYBE FILL THIS OUT
@@ -191,6 +195,12 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 		logger.debug("in merge: " + succNode);
 
 		// TODO: FILL THIS OUT
+		// should be join, because we want to overapproximate
+		try {
+			w3.set(w1.get().joinCopy(man, w2.get()));
+		} catch (ApronException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
@@ -261,44 +271,74 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 			} else if (s instanceof JIfStmt) {
 				// handle if
-				
+
 				// TODO: FILL THIS OUT
 				JIfStmt jIfStmt = (JIfStmt) s;
 				if (jIfStmt.getCondition() instanceof ConditionExpr) {
 					ConditionExpr conditionExpr = (ConditionExpr) jIfStmt.getCondition();
-					if (!(conditionExpr.getOp1() instanceof JimpleLocal)) {
-						throw new RuntimeException("Op1 is not a Local!");
-					}
-					if (!(conditionExpr.getOp2() instanceof JimpleLocal) && !(conditionExpr.getOp2() instanceof IntConstant)) {
-						throw new RuntimeException("Op2 is not a Local or IntConstant!");
-					}
 					Value op1 = conditionExpr.getOp1();
 					Value op2 = conditionExpr.getOp2();
+					Texpr1Node node1 = getNodeFromOp(op1);
+					Texpr1Node node2 = getNodeFromOp(op2);
 					// Get the abstract domain of op1 and op2, and combine them down here
 
-					if (conditionExpr instanceof JEqExpr) {
+					Abstract1 trueBranch = branchOutWrapper.get();
+					Abstract1 falseBranch = fallOutWrapper.get();
 
-					} else if (conditionExpr instanceof JGeExpr) {
+					Texpr1Node node1MinusNode2 = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT,
+																   Texpr1BinNode.RDIR_ZERO, node1, node2);
+					Texpr1Node node2MinusNode1 = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT,
+																   Texpr1BinNode.RDIR_ZERO, node2, node1);
+					Tcons1 equal = new Tcons1(env, Tcons1.EQ, node1MinusNode2); // op1 - op2 == 0
+					Tcons1 greater_equal = new Tcons1(env, Tcons1.SUPEQ, node1MinusNode2); // op1 - op2 >= 0
+					Tcons1 greater_than = new Tcons1(env, Tcons1.SUP, node1MinusNode2); // op1 - op2 > 0
+					Tcons1 less_equal = new Tcons1(env, Tcons1.SUPEQ, node2MinusNode1); // op1 - op2 <= 0, i.e. op2 - op1 >= 0
+					Tcons1 less_than = new Tcons1(env, Tcons1.SUP, node2MinusNode1); // op1 - op2 < 0, i.e. op2 - op1 > 0
 
-					} else if (conditionExpr instanceof JGtExpr) {
+					if (conditionExpr instanceof JEqExpr) { // ==
+						trueBranch = trueBranch.meetCopy(man, equal);
 
-					} else if (conditionExpr instanceof JLeExpr) {
+						// etc and (d < 0 or d > 0) == (etc and d<0) or (etc and d>0)
+						Abstract1 falseBranchGT = falseBranch.meetCopy(man, greater_than);
+						Abstract1 falseBranchLT = falseBranch.meetCopy(man, less_than);
+						falseBranch = falseBranchGT.joinCopy(man, falseBranchLT);
 
-					} else if (conditionExpr instanceof JLtExpr) {
+					} else if (conditionExpr instanceof JGeExpr) { // >=
+						trueBranch = trueBranch.meetCopy(man, greater_equal);
+						falseBranch = falseBranch.meetCopy(man, less_than);
 
-					} else if (conditionExpr instanceof JNeExpr) {
+					} else if (conditionExpr instanceof JGtExpr) { // >
+						trueBranch = trueBranch.meetCopy(man, greater_than);
+						falseBranch = falseBranch.meetCopy(man, less_equal);
+
+					} else if (conditionExpr instanceof JLeExpr) { // <=
+						trueBranch = trueBranch.meetCopy(man, less_equal);
+						falseBranch = falseBranch.meetCopy(man, greater_than);
+
+					} else if (conditionExpr instanceof JLtExpr) { // <
+						trueBranch = trueBranch.meetCopy(man, less_than);
+						falseBranch = falseBranch.meetCopy(man, greater_equal);
+
+					} else if (conditionExpr instanceof JNeExpr) { // !=, i.e. > or <
+						falseBranch = falseBranch.meetCopy(man, equal);
+
+						Abstract1 trueBranchGT = trueBranch.meetCopy(man, greater_than);
+						Abstract1 trueBranchLT = trueBranch.meetCopy(man, less_than);
+						trueBranch = trueBranchGT.joinCopy(man, trueBranchLT);
 
 					} else {
 						// sanity check
 						throw new RuntimeException("VIOLATION");
 					}
 
+					branchOutWrapper.set(trueBranch);
+					fallOutWrapper.set(falseBranch);
+
 				} else {
 					unhandled("Unhandled condition type", jIfStmt, true);
 				}
 
 				logger.debug(jIfStmt.getCondition().toString());
-				
 
 			} else if (s instanceof JInvokeStmt) {
 				// handle invocations
@@ -343,44 +383,121 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 	public void handleInitialize(JInvokeStmt jInvStmt, NumericalStateWrapper fallOutWrapper) throws ApronException {
 		// TODO: MAYBE FILL THIS OUT
+		// for non-negative, reachable if fallOutWrapper is not <empty>, unreachable if not
+		// TODO: question yourself
+		
 	}
 
 	// returns state of in after assignment
+	/**
+	 * Definition Statement: here, you only need to handle integer assignments to a
+	 * local variable.
+	 * That is, x = y, or x = 5 or x = EXPR, where EXPR is one of the three binary
+	 * expressions below.
+	 * That is, you need to be able to handle: y = x + 5 or y = x * z.
+	 */
 	private void handleDef(NumericalStateWrapper outWrapper, Value left, Value right) throws ApronException {
 		// TODO: FILL THIS OUT
-		if (!(left instanceof JimpleLocal)) {
+		// assumption: left != right
+		if (left == right) {
+			logger.debug("left == right!");
+			return;
+		}
+
+		// Extracting the abstr
+		Abstract1 abstr = outWrapper.get();
+		logger.debug("Initial map: " + abstr.toString());
+
+		// process left
+		String varNameLeft;
+		if (left instanceof JimpleLocal) {
+			varNameLeft = ((JimpleLocal) left).getName();
+		} else {
 			throw new RuntimeException("left is not a Local!");
 		}
-		// get name of left
 
 		// process right
 		if (right instanceof BinopExpr) {
 			BinopExpr binopExpr = (BinopExpr) right;
 			Value op1 = binopExpr.getOp1();
 			Value op2 = binopExpr.getOp2();
-			if (!(op1 instanceof JimpleLocal) && !(op1 instanceof IntConstant)) {
-				throw new RuntimeException("Op1 is not a Local or IntConstant!");
-			}
-			if (!(op2 instanceof JimpleLocal) && !(op2 instanceof IntConstant)) {
-				throw new RuntimeException("Op2 is not a Local or IntConstant!");
+
+			if (right instanceof JMulExpr && op1 instanceof JimpleLocal && op2 instanceof JimpleLocal) {
+				// first approximation: if op1 and op2 are both bounded, or if op takes one
+				// value
+				String varName1 = ((JimpleLocal) op1).getName();
+				String varName2 = ((JimpleLocal) op2).getName();
+
+				// assumption: you may ignore overflows in your implementation
+
+				// forget nodeLeft (set it to [-infty, infty])
+				abstr = abstr.forgetCopy(man, varNameLeft, false);
+
+				// TODO: implement the approximation
+
+			} else {
+
+				Texpr1Node node1 = getNodeFromOp(op1);
+				Texpr1Node node2 = getNodeFromOp(op2);
+				Texpr1Node nodeRight = null;
+
+				if (right instanceof JMulExpr) { // const * local, or const * const (which won't happen)
+					nodeRight = new Texpr1BinNode(Texpr1BinNode.OP_MUL, Texpr1BinNode.RTYPE_INT,
+							Texpr1BinNode.RDIR_ZERO, node1, node2);
+				} else if (right instanceof JSubExpr) {
+					nodeRight = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT,
+							Texpr1BinNode.RDIR_ZERO, node1, node2);
+				} else if (right instanceof JAddExpr) {
+					nodeRight = new Texpr1BinNode(Texpr1BinNode.OP_ADD, Texpr1BinNode.RTYPE_INT,
+							Texpr1BinNode.RDIR_ZERO, node1, node2);
+				} else {
+					unhandled("Unhandled binary operation", right, true);
+				}
+
+				// forget nodeLeft
+				abstr = abstr.forgetCopy(man, varNameLeft, false);
+
+				// assign new value
+				Texpr1Intern internRight = new Texpr1Intern(env, nodeRight);
+				abstr = abstr.assignCopy(man, varNameLeft, internRight, null);
+
+				logger.debug(node1.toString() + " " + node2.toString() + " => " + nodeRight);
+				logger.debug(internRight.toString());
+
 			}
 
-			if (right instanceof JMulExpr) {
-	
-			} else if (right instanceof JSubExpr) {
-	
-			} else if (right instanceof JAddExpr) {
-	
-			} else {
-				unhandled("binary operation", right, isForward());
-			}
-		} else if (right instanceof JNegExpr) { // not really necessary
-			unhandled("unary negate operation", right, isForward());
+		} else if (right instanceof ParameterRef) { // e.g. i3 := @parameter0: int => ?
+			// TODO: how do you handle parameter?
+			// Nothing really needed to do for parameters
+		} else if (right instanceof IntConstant || right instanceof JimpleLocal) {
+
+			Texpr1Node nodeRight = getNodeFromOp(right);
+			Texpr1Intern internRight = new Texpr1Intern(env, nodeRight);
+			abstr = abstr.forgetCopy(man, varNameLeft, false);
+			abstr = abstr.assignCopy(man, varNameLeft, internRight, null);
+
+		} else if (right instanceof JNegExpr) { // not necessary
+			unhandled("Unhandled unary negate operation", right, true);
 		} else {
-			unhandled("define operation", right, isForward());
+			unhandled("Unhandled define operation", right, true);
 		}
 
+		// set the abstr
+		outWrapper.set(abstr);
+		logger.debug("Final map: " + abstr.toString());
 	}
 
 	// TODO: MAYBE FILL THIS OUT: add convenience methods
+	private Texpr1Node getNodeFromOp(Value op) {
+		Texpr1Node node;
+		if (op instanceof JimpleLocal) {
+			node = new Texpr1VarNode(((JimpleLocal) op).getName());
+		} else if (op instanceof IntConstant) {
+			node = new Texpr1CstNode(new MpqScalar(((IntConstant) op).value));
+		} else {
+			throw new RuntimeException(op.toString() + " is not a Local or IntConstant!");
+		}
+		return node;
+	}
+
 }

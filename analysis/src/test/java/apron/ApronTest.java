@@ -42,6 +42,7 @@ public class ApronTest {
     Abstract1 xy;
 
     public ApronTest() throws ApronException {
+        
         this.bottom = new Abstract1(man, env, true);
         this.top = new Abstract1(man, env);
 
@@ -246,6 +247,89 @@ public class ApronTest {
         // x is now set to [-oo, +oo], ie we have no information on it
         String expected1 = "{  -1y +1 >= 0;  1y +1 >= 0 }";
         Assertions.assertEquals(expected1, new_1.toString());
+
+    }
+
+
+    //////////////////////////////////////////
+    // Custom Tests //
+    //////////////////////////////////////////
+    @Test
+    public void testForgetVariable2() throws ApronException{
+        // encode x + y < 2, x > 1
+        // encode -(x + y - 2) > 0, x - 1 > 0
+        // expected result after forgetting x: y <= -1
+        Texpr1Node x = new Texpr1VarNode("x");
+        Texpr1Node y = new Texpr1VarNode("y");
+        Texpr1Node xPlusy = new Texpr1BinNode(Texpr1BinNode.OP_ADD, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, y, x);
+        Coeff two = new MpqScalar(2);
+        Texpr1Node twoNode = new Texpr1CstNode(two);
+        Texpr1Node xPlusyMinusTwo = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, xPlusy, twoNode);
+        Texpr1Node negxPlusyMinusTwo = new Texpr1UnNode(Texpr1UnNode.OP_NEG, xPlusyMinusTwo);
+        Tcons1 constraint1 = new Tcons1(env, Tcons1.SUP, negxPlusyMinusTwo);
+
+        Coeff one = new MpqScalar(1);
+        Texpr1Node oneNode = new Texpr1CstNode(one);
+        Texpr1Node xMinusOne = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, x, oneNode);
+        Tcons1 constraint2 = new Tcons1(env, Tcons1.SUP, xMinusOne);
+
+        Abstract1 top = new Abstract1(man, env);
+        Abstract1 a1 = top.meetCopy(man, constraint1);
+		Abstract1 a2 = a1.meetCopy(man, constraint2);
+
+        Abstract1 a3 = a2.forgetCopy(man, "x", false);
+        // throw new RuntimeException(x.toString() + ' ' + y.toString() + ' ' + xPlusy.toString() + ' ' + twoNode.toString() + ' ' + xPlusyMinusTwo + ' ' + negxPlusyMinusTwo + ' ' + constraint1 + ' ' + oneNode + ' ' + xMinusOne +  ' ' + a1.toString() + ' ' + a2.toString() + ' ' + a3.toString());
+        
+        /**
+         * x
+         * y
+         * y +_i,0 x
+         * 2
+         * y +_i,0 x -_i,0 2
+         * -(y +_i,0 x -_i,0 2)
+         * -(y +_i,0 x -_i,0 2) > 0
+         * 
+         * 1 
+         * x -_i,0 1 
+         * 
+         * {  -1x -1y +1 >= 0 } 
+         * {  -1x -1y +1 >= 0;  1x -2 >= 0 } 
+         * {  -1y -1 >= 0 }
+         */
+
+    }
+
+    @Test
+    public void MultiplicationTest() throws ApronException{
+        // encode x + y <= 2, x + y > =-3
+        // Goal: find range of x * y
+        // expected results: [2, -infty]
+        Texpr1Node x = new Texpr1VarNode("x");
+        Texpr1Node y = new Texpr1VarNode("y");
+        Texpr1Node xPlusy = new Texpr1BinNode(Texpr1BinNode.OP_ADD, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, y, x);
+        Coeff two = new MpqScalar(2);
+        Texpr1Node twoNode = new Texpr1CstNode(two);
+        Texpr1Node xPlusyMinusTwo = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, xPlusy, twoNode);
+        Texpr1Node negxPlusyMinusTwo = new Texpr1UnNode(Texpr1UnNode.OP_NEG, xPlusyMinusTwo);
+        Tcons1 constraint1 = new Tcons1(env, Tcons1.SUPEQ, negxPlusyMinusTwo);
+
+        Coeff negThree = new MpqScalar(-3);
+        Texpr1Node negThreeNode = new Texpr1CstNode(negThree);
+        Texpr1Node xPlusyMinusNegThree = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, xPlusy, negThreeNode);
+        Tcons1 constraint2 = new Tcons1(env, Tcons1.SUPEQ, xPlusyMinusNegThree);
+
+        Abstract1 top = new Abstract1(man, env);
+        Abstract1 a1 = top.meetCopy(man, constraint1);
+		Abstract1 a2 = a1.meetCopy(man, constraint2);
+
+        Texpr1Node xTimesy = new Texpr1BinNode(Texpr1BinNode.OP_MUL, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, y, x);
+        Texpr1Intern xTimesyIntern = new Texpr1Intern(env, xTimesy);
+
+        Interval bounds = a2.getBound(man, xTimesyIntern);
+        // throw new RuntimeException(a2.toString() + ' ' + bounds.toString());
+        // {  -1x -1y +2 >= 0;  1x +1y +3 >= 0 } [-oo,+oo]
+
+        // shows that this doesn't really work
 
     }
 

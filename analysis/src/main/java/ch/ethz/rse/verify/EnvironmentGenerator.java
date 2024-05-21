@@ -14,6 +14,7 @@ import ch.ethz.rse.utils.Constants;
 import soot.IntegerType;
 import soot.Local;
 import soot.PointsToAnalysis;
+import soot.SootHelper;
 import soot.SootMethod;
 import soot.Unit;
 import soot.Value;
@@ -55,11 +56,11 @@ public class EnvironmentGenerator {
 		// populate this.ints
 
 		// TODO: FILL THIS OUT
-		// TODO: how to use pointsTo?
+		// TODO: how to use pointsTo? probably to store production_cost
 		logger.debug("Building environment...");
 		for (Local local: this.method.getActiveBody().getLocals()) {
 			logger.debug(local.getName() + " " + local.getType().toString());
-			if (local.getType().toString() == "int") {
+			if (SootHelper.isIntValue((Value) local)) {
 				this.ints.add(local.getName());
 			}
 		}

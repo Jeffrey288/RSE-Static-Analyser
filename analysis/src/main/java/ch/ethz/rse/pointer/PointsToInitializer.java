@@ -63,7 +63,6 @@ public class PointsToInitializer {
 		this.analyzeAllInitializers();
 	} 	
 		
-
 	private void analyzeAllInitializers() {
 		for (SootMethod method : this.c.getMethods()) {
 
@@ -90,26 +89,24 @@ public class PointsToInitializer {
 					InvokeExpr invokeExpr = stmt.getInvokeExpr();
 					if (invokeExpr instanceof JSpecialInvokeExpr) {
 						logger.debug("We have a JSpecialInvokeExpr!");
-						JSpecialInvokeExpr expr = (JSpecialInvokeExpr) invokeExpr; // assumption: must be Frog
-						// assumption: the constructor Frog takes as arguments (production_cost) only integer constants (never local variables)
-						// 		you can put a constant expression in the constructor in the master solution, but still
-						//		it works: new Frog((int) (1+3/4.0+2)*1); is converted to specialinvoke $r0.<ch.ethz.rse.Frog: void <init>(int)>(3)
-						logger.debug(expr.toString());
-						logger.debug(expr.getArg(0).toString());
-						logger.debug("" + ((IntConstant) expr.getArg(0)).value);
-						FrogInitializer initializer = new FrogInitializer(stmt, num_initializers++, ((IntConstant) expr.getArg(0)).value);
-						perMethod.put(method, initializer);
-
-						// TODO: confirm whether this works
-						// I think this is wrong but I have no idea how to change it
-						// nor how to use it actually
-						// Node: Represents every node in the pointer assignment graph.
-						// https://plg.uwaterloo.ca/~olhotak/pubs/cc03.pdf#page=4
-						Local local = (Local) expr.getBaseBox().getValue(); 
-						logger.debug(local.toString());
-						logger.debug(pointsTo.getNodes(local).toString());
-						for (Node node: pointsTo.getNodes(local)) {
-							initializers.put(node, initializer);
+						JSpecialInvokeExpr expr = (JSpecialInvokeExpr) invokeExpr;
+						if (isRelevantInit(expr)) {
+							// assumption: the constructor Frog takes as arguments (production_cost) only integer constants (never local variables)
+							// 		you can put a constant expression in the constructor in the master solution, but still
+							//		it works: new Frog((int) (1+3/4.0+2)*1); is converted to specialinvoke $r0.<ch.ethz.rse.Frog: void <init>(int)>(3)
+							logger.debug(expr.toString());
+							logger.debug(expr.getArg(0).toString());
+							logger.debug("" + ((IntConstant) expr.getArg(0)).value);
+							FrogInitializer initializer = new FrogInitializer(stmt, num_initializers++, ((IntConstant) expr.getArg(0)).value);
+							perMethod.put(method, initializer);
+							
+							// Node: Represents every node in the pointer assignment graph.
+							// https://plg.uwaterloo.ca/~olhotak/pubs/cc03.pdf#page=4
+							logger.debug(expr.getBase().toString());
+							logger.debug(getAllocationNodes(expr).toString());
+							for (Node node: getAllocationNodes(expr)) {
+								initializers.put(node, initializer);
+							}
 						}
 					}
 				}
@@ -124,7 +121,7 @@ public class PointsToInitializer {
 		return this.perMethod.get(method);
 	}
 
-	// base points to some nodes, and each node point to one initializer
+	// should probably use this function
 	public List<FrogInitializer> pointsTo(Local base) {
 		Collection<Node> nodes = this.pointsTo.getNodes(base);
 		List<FrogInitializer> initializers = new LinkedList<FrogInitializer>();
@@ -141,6 +138,7 @@ public class PointsToInitializer {
 	/**
 	 * Returns all allocation nodes that could correspond to the given invokeExpression, which must be a call to Frog init function
 	 * Note that more than one node can be returned.
+	 * TODO: Create a test case with more than one node per invokeExpr
 	 */
 	public Collection<Node> getAllocationNodes(JSpecialInvokeExpr invokeExpr){
 		if(!isRelevantInit(invokeExpr)){
