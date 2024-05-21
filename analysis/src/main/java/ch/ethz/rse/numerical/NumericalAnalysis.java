@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import javax.management.RuntimeErrorException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +35,7 @@ import soot.SootHelper;
 import soot.SootMethod;
 import soot.Unit;
 import soot.Value;
+import soot.ValueBox;
 import soot.jimple.AddExpr;
 import soot.jimple.BinopExpr;
 import soot.jimple.ConditionExpr;
@@ -58,6 +61,7 @@ import soot.jimple.internal.JLeExpr;
 import soot.jimple.internal.JLtExpr;
 import soot.jimple.internal.JMulExpr;
 import soot.jimple.internal.JNeExpr;
+import soot.jimple.internal.JNegExpr;
 import soot.jimple.internal.JReturnVoidStmt;
 import soot.jimple.internal.JSpecialInvokeExpr;
 import soot.jimple.internal.JSubExpr;
@@ -257,8 +261,43 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 			} else if (s instanceof JIfStmt) {
 				// handle if
-
+				
 				// TODO: FILL THIS OUT
+				JIfStmt jIfStmt = (JIfStmt) s;
+				if (jIfStmt.getCondition() instanceof ConditionExpr) {
+					ConditionExpr conditionExpr = (ConditionExpr) jIfStmt.getCondition();
+					if (!(conditionExpr.getOp1() instanceof JimpleLocal)) {
+						throw new RuntimeException("Op1 is not a Local!");
+					}
+					if (!(conditionExpr.getOp2() instanceof JimpleLocal) && !(conditionExpr.getOp2() instanceof IntConstant)) {
+						throw new RuntimeException("Op2 is not a Local or IntConstant!");
+					}
+					Value op1 = conditionExpr.getOp1();
+					Value op2 = conditionExpr.getOp2();
+					// Get the abstract domain of op1 and op2, and combine them down here
+
+					if (conditionExpr instanceof JEqExpr) {
+
+					} else if (conditionExpr instanceof JGeExpr) {
+
+					} else if (conditionExpr instanceof JGtExpr) {
+
+					} else if (conditionExpr instanceof JLeExpr) {
+
+					} else if (conditionExpr instanceof JLtExpr) {
+
+					} else if (conditionExpr instanceof JNeExpr) {
+
+					} else {
+						// sanity check
+						throw new RuntimeException("VIOLATION");
+					}
+
+				} else {
+					unhandled("Unhandled condition type", jIfStmt, true);
+				}
+
+				logger.debug(jIfStmt.getCondition().toString());
 				
 
 			} else if (s instanceof JInvokeStmt) {
@@ -309,6 +348,38 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 	// returns state of in after assignment
 	private void handleDef(NumericalStateWrapper outWrapper, Value left, Value right) throws ApronException {
 		// TODO: FILL THIS OUT
+		if (!(left instanceof JimpleLocal)) {
+			throw new RuntimeException("left is not a Local!");
+		}
+		// get name of left
+
+		// process right
+		if (right instanceof BinopExpr) {
+			BinopExpr binopExpr = (BinopExpr) right;
+			Value op1 = binopExpr.getOp1();
+			Value op2 = binopExpr.getOp2();
+			if (!(op1 instanceof JimpleLocal) && !(op1 instanceof IntConstant)) {
+				throw new RuntimeException("Op1 is not a Local or IntConstant!");
+			}
+			if (!(op2 instanceof JimpleLocal) && !(op2 instanceof IntConstant)) {
+				throw new RuntimeException("Op2 is not a Local or IntConstant!");
+			}
+
+			if (right instanceof JMulExpr) {
+	
+			} else if (right instanceof JSubExpr) {
+	
+			} else if (right instanceof JAddExpr) {
+	
+			} else {
+				unhandled("binary operation", right, isForward());
+			}
+		} else if (right instanceof JNegExpr) { // not really necessary
+			unhandled("unary negate operation", right, isForward());
+		} else {
+			unhandled("define operation", right, isForward());
+		}
+
 	}
 
 	// TODO: MAYBE FILL THIS OUT: add convenience methods

@@ -24,7 +24,7 @@ public class Complex_Test_Safe {
     }
     if (i < 1) {
       frog_with_hat = frog_with_pants;
-    } else {
+    } else if (i > 1 || (i != 3 && i < 6)) {
       frog_with_hat = frog_with_big_tongue;
     }
     frog_with_hat.sell(5);
