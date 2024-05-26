@@ -175,7 +175,7 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 	@Override
 	protected NumericalStateWrapper newInitialFlow() {
 		// should be bottom (only entry flows are not bottom originally)
-		logger.debug("newInitalFlow was called!");
+		// logger.debug("newInitalFlow was called!");
 		return NumericalStateWrapper.bottom(man, env);
 	}
 
@@ -186,6 +186,14 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 		NumericalStateWrapper ret = NumericalStateWrapper.top(man, env);
 
 		// TODO: MAYBE FILL THIS OUT
+		try {
+			Abstract1 abs = ret.get();
+			Texpr1Intern intern = new Texpr1Intern(env, new Texpr1CstNode(new MpqScalar(0)));
+			abs = abs.assignCopy(man, "FROG_OVERALL_PROFIT", intern, null);
+			ret.set(abs);
+		} catch (ApronException e) {
+			throw new RuntimeException(e);
+		}
 
 		return ret;
 	}

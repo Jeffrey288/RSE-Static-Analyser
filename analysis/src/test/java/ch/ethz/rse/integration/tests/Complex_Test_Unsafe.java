@@ -4,9 +4,9 @@ import ch.ethz.rse.Frog;
 
 // expected results:
 // NON_NEGATIVE SAFE
-// ITEM_PROFIT SAFE
-// OVERALL_PROFIT SAFE
-public class Complex_Test_Safe {
+// ITEM_PROFIT UNSAFE
+// OVERALL_PROFIT UNSAFE
+public class Complex_Test_Unsafe {
 
   public static void m1() {
     int i = 1;
@@ -26,7 +26,6 @@ public class Complex_Test_Safe {
         frog_with_big_tongue = new Frog(20);
       } else {
         frog_with_big_tongue = new Frog(10);
-        return;
       }
       frog_with_big_tongue.sell(15);
     }

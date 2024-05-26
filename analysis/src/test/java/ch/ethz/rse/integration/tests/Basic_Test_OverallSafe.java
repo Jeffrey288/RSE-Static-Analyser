@@ -7,7 +7,6 @@ import ch.ethz.rse.Frog;
 // NON_NEGATIVE UNSAFE
 // ITEM_PROFIT UNSAFE
 // OVERALL_PROFIT SAFE
-
 public class Basic_Test_OverallSafe {
 
     public void m() {

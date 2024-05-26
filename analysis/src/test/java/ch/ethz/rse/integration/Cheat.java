@@ -83,6 +83,7 @@ public class Cheat {
 										 + "// ITEM_PROFIT " + (Frog.item_profit ? "SAFE" : "UNSAFE") + "\n"
 										 + "// OVERALL_PROFIT " + (Frog.total_profit >= 0 ? "SAFE" : "UNSAFE") + "\n";
 					logger.debug(result_string);
+					logger.debug("Overall profit was " + Frog.total_profit);
 
 					// Read the entire content of the file
 					// Define the regex pattern to match the block of lines
@@ -101,7 +102,7 @@ public class Cheat {
 					// Write the modified content back to the file
 					Files.write(modifiedContent.getBytes(), f);
 
-					System.out.println("File updated successfully.");
+					logger.debug("File updated successfully.");
 				} catch (IOException e) {
 					e.printStackTrace();
 				} catch (IllegalAccessException | InvocationTargetException e) {
@@ -111,47 +112,9 @@ public class Cheat {
 			}
 		
 		}
-		
-		// String packageName = "ch.ethz.rse.integration.tests.Complex_Test_Safe";
-		// VerificationProperty verificationTask = VerificationProperty.ITEM_PROFIT;
-		
-		
-
-		// boolean expectedIsSafe = false;
-
-
-		// VerificationTestCase t = new VerificationTestCase(packageName, verificationTask, expectedIsSafe);
-		// SpecificExampleIT2.testOnExample(t);
+	
 	}
-
 
 	private static final Logger logger = LoggerFactory.getLogger(Cheat.class);
-
-	public static void testOnExample(VerificationTestCase example) {
-
-		Assumptions.assumeFalse(example.isDisabled());
-
-		try {
-			VerificationResult actual = Runner.verify(example.getVerificationTask());
-			
-			// check result
-			Cheat.compare(example.toString(), example.expected, actual);
-			Assertions.assertEquals(example.expected, actual);
-		} catch (Throwable e) {
-			logger.error("Exception for example {}: {}", example, e);
-			throw e;
-		}
-	}
-
-	// LOGGING RESULTS
-
-	private static void compare(String label, VerificationResult expected, VerificationResult actual) {
-		String cmp = actual.compare(expected);
-
-		String s = String.format("%s (expected:%s,got:%s)", label, expected.toString(), actual.toString());
-		s = Strings.padEnd(s, 75, ' ');
-		String summary = String.format("%s: %s", s, cmp);
-		logger.info(summary);
-	}
 
 }
