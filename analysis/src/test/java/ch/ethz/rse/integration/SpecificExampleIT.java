@@ -23,7 +23,7 @@ public class SpecificExampleIT {
 	void specificTest() {
 		String packageName = "ch.ethz.rse.integration.tests.Complex_Test_Safe";
 		VerificationProperty verificationTask = VerificationProperty.ITEM_PROFIT;
-		boolean expectedIsSafe = true;
+		boolean expectedIsSafe = false;
 		VerificationTestCase t = new VerificationTestCase(packageName, verificationTask, expectedIsSafe);
 		SpecificExampleIT.testOnExample(t);
 	}

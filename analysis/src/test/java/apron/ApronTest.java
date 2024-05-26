@@ -333,4 +333,100 @@ public class ApronTest {
 
     }
 
+    
+    @Test
+    public void IntersectionTest() throws ApronException{
+        // encode x + y > 2, 2x + y < 3, x - 4y > 20, z in [0 to 20]
+        // expected result: empty
+
+        String[] int_names = {"x", "y", "z"};
+        Manager man = new Polka(true);
+        Environment env = new Environment(int_names, real_names);
+        
+        // x + y > 2
+        Texpr1Node x = new Texpr1VarNode("x");
+        Texpr1Node y = new Texpr1VarNode("y");
+        Texpr1Node z = new Texpr1VarNode("z");
+        Texpr1Node xPlusy = new Texpr1BinNode(Texpr1BinNode.OP_ADD, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, x, y);
+        Coeff two = new MpqScalar(2);
+        Texpr1Node twoNode = new Texpr1CstNode(two);
+        Texpr1Node xPlusyMinusTwo = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, xPlusy, twoNode);
+        Tcons1 constraint1 = new Tcons1(env, Tcons1.SUP, xPlusyMinusTwo);
+
+        // 2x + y < 3
+        Coeff twoCoeff = new MpqScalar(2);
+        Texpr1Node twoX = new Texpr1BinNode(Texpr1BinNode.OP_MUL, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, new Texpr1CstNode(twoCoeff), x);
+        Texpr1Node twoXPlusy = new Texpr1BinNode(Texpr1BinNode.OP_ADD, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, twoX, y);
+        Coeff three = new MpqScalar(3);
+        Texpr1Node threeNode = new Texpr1CstNode(three);
+        Texpr1Node twoXPlusyMinusThree = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, twoXPlusy, threeNode);
+        Texpr1Node negTwoXPlusyMinusThree = new Texpr1UnNode(Texpr1UnNode.OP_NEG, twoXPlusyMinusThree);
+        Tcons1 constraint2 = new Tcons1(env, Tcons1.SUP, negTwoXPlusyMinusThree);
+
+        // x - 4y > 20
+        Coeff fourCoeff = new MpqScalar(4);
+        Texpr1Node fourY = new Texpr1BinNode(Texpr1BinNode.OP_MUL, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, new Texpr1CstNode(fourCoeff), y);
+        Texpr1Node xMinusFourY = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, x, fourY);
+        Coeff twenty = new MpqScalar(20);
+        Texpr1Node twentyNode = new Texpr1CstNode(twenty);
+        Texpr1Node xMinusFourYMinusTwenty = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, xMinusFourY, twentyNode);
+        Tcons1 constraint3 = new Tcons1(env, Tcons1.SUP, xMinusFourYMinusTwenty);
+
+        // 0 <= z <= 20
+        Coeff zero = new MpqScalar(0);
+        Coeff twentyOne = new MpqScalar(20);
+        Texpr1Node zeroNode = new Texpr1CstNode(zero);
+        Texpr1Node twentyOneNode = new Texpr1CstNode(twentyOne);
+        Texpr1Node zMinusZero = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, z, zeroNode);
+        Texpr1Node twentyOneMinusZ = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT, Texpr1BinNode.RDIR_ZERO, twentyOneNode, z);
+        Tcons1 constraint4 = new Tcons1(env, Tcons1.SUPEQ, zMinusZero);
+        Tcons1 constraint5 = new Tcons1(env, Tcons1.SUPEQ, twentyOneMinusZ);
+
+        Abstract1 top = new Abstract1(man, env);
+        Abstract1 a1 = top.meetCopy(man, constraint1);
+		Abstract1 a2 = a1.meetCopy(man, constraint2);
+		Abstract1 a3 = a2.meetCopy(man, constraint4);
+        Abstract1 a4 = a3.meetCopy(man, constraint5);
+        Abstract1 a5 = a4.meetCopy(man, constraint3);
+
+        // throw new RuntimeException(a2.toString()); // {  -2x -1y +2 >= 0;  1x +1y -3 >= 0 }
+        // throw new RuntimeException(a4.toString()); // -2x -1y +2 >= 0;  -1z +20 >= 0;  1z >= 0;  1x +1y -3 >= 0 
+        // throw new RuntimeException(a5.toString()); // empty
+        Assertions.assertTrue(a5.toString().equals("<empty>"));
+
+    }
+
+    @Test
+    public void AddTest() throws ApronException{
+        try {
+            // Initialize the environment with variables x and y
+            String[] varNames = {"x", "y"};
+            Environment env = new Environment(varNames, new String[]{});
+
+            // Create the initial intervals for x = [1, 2] and y = [2, 3]
+            Interval xInterval = new Interval(1, 2);
+            Interval yInterval = new Interval(2, 3);
+
+            // Create the abstract state with these intervals
+            Abstract1 a1 = new Abstract1(new Box(), env, new String[]{"x", "y"}, new Interval[]{xInterval, yInterval});
+
+            // Update x = x + y
+            Texpr1Node x = new Texpr1VarNode("x");
+            Texpr1Node y = new Texpr1VarNode("y");
+            Texpr1Node xPlusy = new Texpr1BinNode(Texpr1BinNode.OP_ADD, Texpr1BinNode.RTYPE_REAL, Texpr1BinNode.RDIR_ZERO, x, y);
+            Texpr1Intern xPlusyIntern = new Texpr1Intern(env, xPlusy);
+
+            // Assign the new value to x
+            Abstract1 a2 = a1.assignCopy(new Box(), "x", xPlusyIntern, null);
+            // throw new RuntimeException(a1.toString() + ' ' + a2.toString());
+            // a1 {  1x -1.0 >= 0;  -1x +2.0 >= 0;  1y -2.0 >= 0;  -1y +3.0 >= 0 } 
+            // x: [1, 2], y: [2, 3]
+            // a2 {  1x -3.0 >= 0;  -1x +5.0 >= 0;  1y -2.0 >= 0;  -1y +3.0 >= 0 }
+            // x: [3, 5], y: [2, 3]
+
+        } catch (ApronException e) {
+            e.printStackTrace();
+        }
+    }
+
 }

@@ -17,6 +17,7 @@ import apron.Environment;
 import apron.Manager;
 import apron.MpqScalar;
 import apron.Polka;
+import apron.Scalar;
 import apron.Tcons1;
 import apron.Texpr1BinNode;
 import apron.Texpr1CstNode;
@@ -192,12 +193,24 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 	@Override
 	protected void merge(Unit succNode, NumericalStateWrapper w1, NumericalStateWrapper w2, NumericalStateWrapper w3) {
 		// merge the two states from w1 and w2 and store the result into w3
-		logger.debug("in merge: " + succNode);
-
+		
 		// TODO: FILL THIS OUT
-		// should be join, because we want to overapproximate
+		boolean isLoop = loopHeads.containsKey(succNode);
+		int num_iters = 0;
+		if (isLoop) {
+			num_iters = loopHeads.get(succNode).value++;
+			logger.debug("in merge: " + succNode + ", visited " + num_iters + " times");
+		} else {
+			logger.debug("in merge: " + succNode);
+		}
+		
 		try {
-			w3.set(w1.get().joinCopy(man, w2.get()));
+			if (isLoop && num_iters > WIDENING_THRESHOLD) {
+				w3.set(this.widenFixed(w1.get(), w2.get())); // widening
+			} else {
+				// should be join, because we want to overapproximate
+				w3.set(w1.get().joinCopy(man, w2.get())); // joining
+			}
 		} catch (ApronException e) {
 			throw new RuntimeException(e);
 		}
@@ -213,6 +226,20 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 	protected void flowThrough(NumericalStateWrapper inWrapper, Unit op, List<NumericalStateWrapper> fallOutWrappers,
 			List<NumericalStateWrapper> branchOutWrappers) {
 		logger.debug(inWrapper + " " + op + " => ?");
+
+		// TODO: delete later, is used to test stuff
+		// if (unitState.containsKey(op)) {
+		// 	NumericalStateWrapper state = unitState.get(op);
+		// 	try {
+		// 		if (state.get().isIncluded(man, inWrapper.get())) {
+		// 			throw new RuntimeException("inWrapper not included in state");
+		// 		}
+		// 	} catch (ApronException e) {
+		// 		throw new RuntimeException(e);
+		// 	}
+		// }
+		// store the state
+		// unitState.put(op, inWrapper);
 
 		Stmt s = (Stmt) op;
 
@@ -378,14 +405,37 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 		if (this.property == VerificationProperty.OVERALL_PROFIT) {
 			// TODO: MAYBE FILL THIS OUT
 
+			// Frog.total_profit += (price - this.production_cost);
+			// min(total_profit) = min(price) - max(production_cost)
+
+			Abstract1 abs = fallOutWrapper.get();
+
+			JVirtualInvokeExpr invokeExpr = (JVirtualInvokeExpr) jInvStmt.getInvokeExpr();
+			Local base = (Local) invokeExpr.getBase();
+			List<FrogInitializer> initializers = pointsTo.pointsTo(base);
+			int max_cost = Integer.MIN_VALUE;
+			for (FrogInitializer initializer: initializers) {
+				max_cost = Math.max(max_cost, initializer.argument);
+			}
+			Texpr1Node costNode = new Texpr1CstNode(new MpqScalar(max_cost));
+
+			Value arg = invokeExpr.getArg(0);
+			Texpr1Node argNode = getNodeFromOp(arg);
+
+			Texpr1Node argSubCost = new Texpr1BinNode(Texpr1BinNode.OP_SUB, Texpr1BinNode.RTYPE_INT,
+				Texpr1BinNode.RDIR_ZERO, argNode, costNode);
+			Texpr1Node totalNode = new Texpr1VarNode("FROG_OVERALL_PROFIT");
+			Texpr1Node totalPlusArgSubCost = new Texpr1BinNode(Texpr1BinNode.OP_ADD, Texpr1BinNode.RTYPE_INT,
+				Texpr1BinNode.RDIR_ZERO, totalNode, argSubCost);
+			Texpr1Intern intern = new Texpr1Intern(env, totalPlusArgSubCost);
+			
+			abs = abs.assignCopy(man, "FROG_OVERALL_PROFIT", intern, null);
+			fallOutWrapper.set(abs);
 		}
 	}
 
 	public void handleInitialize(JInvokeStmt jInvStmt, NumericalStateWrapper fallOutWrapper) throws ApronException {
 		// TODO: MAYBE FILL THIS OUT
-		// for non-negative, reachable if fallOutWrapper is not <empty>, unreachable if not
-		// TODO: question yourself
-		
 	}
 
 	// returns state of in after assignment
@@ -499,5 +549,14 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 		}
 		return node;
 	}
+	
+	private Abstract1 widenFixed(Abstract1 oldState, Abstract1 newState) throws ApronException {
+        Abstract1 joined = newState.joinCopy(man, oldState);
+        Abstract1 widened = oldState.widening(man, joined);
+        return widened;
+    }
+
+	// for debugging
+	private HashMap<Unit, NumericalStateWrapper> unitState = new HashMap<Unit, NumericalStateWrapper>();
 
 }

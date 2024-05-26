@@ -56,7 +56,6 @@ public class EnvironmentGenerator {
 		// populate this.ints
 
 		// TODO: FILL THIS OUT
-		// TODO: how to use pointsTo? probably to store production_cost
 		logger.debug("Building environment...");
 		for (Local local: this.method.getActiveBody().getLocals()) {
 			logger.debug(local.getName() + " " + local.getType().toString());
@@ -64,6 +63,7 @@ public class EnvironmentGenerator {
 				this.ints.add(local.getName());
 			}
 		}
+		this.ints.add("FROG_OVERALL_PROFIT");
 		
 		logger.debug(this.ints.toString());
 		String ints_arr[] = Iterables.toArray(this.ints, String.class);

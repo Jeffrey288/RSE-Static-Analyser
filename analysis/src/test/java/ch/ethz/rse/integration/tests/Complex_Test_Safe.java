@@ -25,6 +25,7 @@ public class Complex_Test_Safe {
         frog_with_big_tongue = new Frog(20);
       } else {
         frog_with_big_tongue = new Frog(10);
+        return;
       }
       frog_with_big_tongue.sell(15);
     }
