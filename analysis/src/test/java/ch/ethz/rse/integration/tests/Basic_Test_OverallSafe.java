@@ -1,4 +1,3 @@
-// DISABLED (by removing this line, you can enable this test to check if you are sound)
 package ch.ethz.rse.integration.tests;
 
 import ch.ethz.rse.Frog;

@@ -2,12 +2,19 @@ package apron;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import ch.ethz.rse.integration.Cheat;
+import gmp.Mpq;
 
 /**
  * Unit test for basic Apron functionality, inspired by
  * https://github.com/antoinemine/apron/blob/cf9017f99655e514b1ba336a5c56c548189ccd64/japron/apron/Test.java
  */
 public class ApronTest {
+
+    private static final Logger logger = LoggerFactory.getLogger(ApronTest.class);
 
     /**
      * Numerical abstract domain to use for analysis: Convex polyhedra
@@ -427,6 +434,154 @@ public class ApronTest {
         } catch (ApronException e) {
             e.printStackTrace();
         }
+    }
+
+    @Test
+    public void EmptyTest() throws ApronException{
+        try {
+
+            Interval[] box = { new Interval(1, -1), new Interval(-1, 1) };
+            Abstract1 empty = new Abstract1(man, env, integer_names, box);
+            Assertions.assertTrue(empty.isBottom(man));
+
+        } catch (ApronException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    public void IntervalTest() throws ApronException {
+
+        Interval int1 = new Interval(-1, -1);
+        Interval int2 = new Interval(2, 6);
+        Interval int3 = new Interval();
+
+        if (int1.isBottom() || int2.isBottom()) {
+            int3.setBottom();
+        } else if (int1.isTop() || int2.isTop()) {
+            int3.setTop();
+        // } else if (int1.isScalar()) {
+        //     // blah
+        // } else if (int2.isScalar()) {
+        //     // blah  
+        } else {
+            int3 = MultiplyIntervals(int1, int2);
+        }
+
+        logger.debug(int1.isScalar() ? "int1 is scalar" : "int1 is not scalar");
+        logger.debug(int3.toString()); // 15:11:38 [main] DEBUG apron.ApronTest: [-6,-2]
+
+        Interval int4 = new Interval();
+        int4.setTop();
+        Interval int5 = new Interval();
+        int5.setBottom();
+        logger.debug(int4.inf().toString() + " " + int4.sup().toString());
+        logger.debug(int5.inf().toString() + " " + int5.sup().toString());
+        // 14:25:39 [main] DEBUG apron.ApronTest: -Infinity Infinity
+        // 14:25:39 [main] DEBUG apron.ApronTest: 1.0 -1.0
+
+        Interval int6 = new Interval(int4.inf(), int4.inf());
+        logger.debug(int6.toString());
+        // 14:28:31 [main] DEBUG apron.ApronTest: [-Infinity,-Infinity]
+
+        Scalar pinfty = int4.sup();
+        Scalar ninfty = int4.inf();
+
+        logger.debug(MultiplyScalars(new MpqScalar(1), new MpqScalar(3)).toString());
+        logger.debug(MultiplyScalars(new MpqScalar(-2), new MpqScalar(3)).toString());
+        logger.debug(MultiplyScalars(new MpqScalar(-100), new MpqScalar(230)).toString());
+        logger.debug(MultiplyScalars(pinfty, new MpqScalar(3)).toString());
+        logger.debug(MultiplyScalars(new MpqScalar(1), ninfty).toString());
+        logger.debug(MultiplyScalars(new MpqScalar(0), ninfty).toString());
+        logger.debug(MultiplyScalars(pinfty, ninfty).toString());
+        // 14:57:02 [main] DEBUG apron.ApronTest: 3
+        // 14:57:02 [main] DEBUG apron.ApronTest: -6
+        // 14:57:02 [main] DEBUG apron.ApronTest: -23000
+        // 14:57:02 [main] DEBUG apron.ApronTest: +oo
+        // 14:57:02 [main] DEBUG apron.ApronTest: -oo
+        // 14:57:02 [main] DEBUG apron.ApronTest: 0
+        // 14:57:02 [main] DEBUG apron.ApronTest: -oo
+
+        // java.lang.ClassCastException: apron.DoubleScalar cannot be cast to apron.MpqScalar
+
+        logger.debug(MultiplyIntervals(new Interval(2, 6), new Interval(2, 6)).toString());
+        logger.debug(MultiplyIntervals(new Interval(-100, 6), new Interval(2, -230)).toString());
+        logger.debug(MultiplyIntervals(new Interval(2, 230), new Interval(-2, 6)).toString());
+        logger.debug(MultiplyIntervals(new Interval(-2, 20), new Interval(-2, 106)).toString());
+        logger.debug(MultiplyIntervals(new Interval(0, 6), new Interval(0, 10)).toString());
+        logger.debug(MultiplyIntervals(new Interval(ninfty, new MpqScalar(0)), new Interval(ninfty, pinfty)).toString());
+        logger.debug(MultiplyIntervals(new Interval(ninfty, new MpqScalar(-20)), new Interval(new MpqScalar(-15), pinfty)).toString());
+        logger.debug(MultiplyIntervals(new Interval(-20, 20), new Interval(new MpqScalar(-100), pinfty)).toString());
+        logger.debug(MultiplyIntervals(new Interval(ninfty, pinfty), new Interval(ninfty, pinfty)).toString());
+        logger.debug(MultiplyIntervals(new Interval(ninfty, new MpqScalar(0)), new Interval(new MpqScalar(0), pinfty)).toString());
+        logger.debug(MultiplyIntervals(new Interval(ninfty, new MpqScalar(-20)), new Interval(new MpqScalar(10), pinfty)).toString());
+        
+        // 15:19:12 [main] DEBUG apron.ApronTest: [4,36]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [-1380,23000]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [-460,1380]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [-212,2120]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [0,60]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [-oo,+oo]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [-oo,+oo]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [-oo,+oo]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [-oo,+oo]
+        // 15:19:12 [main] DEBUG apron.ApronTest: [-oo,0]
+        // 15:21:36 [main] DEBUG apron.ApronTest: [-oo,-200]
+
+        // Results generated by ChatGPT
+        // logger.debug("[4, 36]");           // [2, 6] * [2, 6]
+        // logger.debug("[-1380, 23000]");    // [-100, 6] * [2, -230]
+        // logger.debug("[-460, 1380]");      // [2, 230] * [-2, 6]
+        // logger.debug("[-212, 2120]");      // [-2, 20] * [-2, 106]
+        // logger.debug("[0, 60]");           // [0, 6] * [0, 10]
+        // logger.debug("[-∞, ∞]");           // (-∞, 0] * (-∞, ∞)
+        // logger.debug("[-∞, ∞]");           // (-∞, -20] * [-15, ∞)
+        // logger.debug("[-∞, ∞]");           // [-20, 20] * [-100, ∞)
+        // logger.debug("[-∞, ∞]");           // (-∞, ∞) * (-∞, ∞)
+        // logger.debug("[-∞, 0]");           // (-∞, 0] * [0, ∞)
+    }
+
+    public Interval MultiplyIntervals(Interval a, Interval b) {
+        // [x₁, x₂] · [y₁, y₂] = [min{x₁y₁, x₁y₂, x₂y₁, x₂y₂}, max{x₁y₁, x₁y₂, x₂y₁, x₂y₂}]
+        
+        // Calculate the four products
+        Scalar prod1 = MultiplyScalars(a.inf(), b.inf());
+        Scalar prod2 = MultiplyScalars(a.sup(), b.inf());
+        Scalar prod3 = MultiplyScalars(a.inf(), b.sup());
+        Scalar prod4 = MultiplyScalars(a.sup(), b.sup());
+        
+        // Determine the minimum and maximum of the products
+        Scalar min = prod1;
+        if (prod2.cmp(min) < 0) min = prod2;
+        if (prod3.cmp(min) < 0) min = prod3;
+        if (prod4.cmp(min) < 0) min = prod4;
+        
+        Scalar max = prod1;
+        if (prod2.cmp(max) > 0) max = prod2;
+        if (prod3.cmp(max) > 0) max = prod3;
+        if (prod4.cmp(max) > 0) max = prod4;
+        
+        // Return the resulting interval
+        return new Interval(min, max);
+    }
+
+    public Scalar MultiplyScalars(Scalar a, Scalar b) {
+        Scalar temp = new MpqScalar();
+        if (a.isInfty() * b.isInfty() != 0) { // i.e. a and b are both infinity
+            temp.setInfty(a.isInfty() * b.isInfty());
+        } else if (a.isZero() || b.isZero()) { // anything times 0 is 0, no need to think of limits ;D
+            temp.set(0);
+        } else if (a.isInfty() != 0 || b.isInfty() != 0) {
+            temp.setInfty(a.sgn() * b.sgn());
+        } else { // are finite
+            Mpq a_mpq = new Mpq();
+            ((MpqScalar) a).toMpq(a_mpq, 0);
+            Mpq b_mpq = new Mpq();
+            ((MpqScalar) b).toMpq(b_mpq, 0);
+            a_mpq.mul(b_mpq);
+            temp = new MpqScalar(a_mpq);
+        }
+        return temp;
     }
 
 }

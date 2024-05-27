@@ -134,6 +134,9 @@ public class Verifier extends AVerifier {
 							throw new RuntimeException(e);
 						}
 						
+						logger.debug(invokeExpr.toString());
+						logger.debug(abs.toString());
+						
 					}
 
 				}

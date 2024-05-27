@@ -14,6 +14,7 @@ import apron.Abstract1;
 import apron.ApronException;
 import apron.Coeff;
 import apron.Environment;
+import apron.Interval;
 import apron.Manager;
 import apron.MpqScalar;
 import apron.Polka;
@@ -29,6 +30,7 @@ import ch.ethz.rse.pointer.FrogInitializer;
 import ch.ethz.rse.pointer.PointsToInitializer;
 import ch.ethz.rse.utils.Constants;
 import ch.ethz.rse.verify.EnvironmentGenerator;
+import gmp.Mpq;
 import soot.ArrayType;
 import soot.DoubleType;
 import soot.Local;
@@ -222,6 +224,10 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 		} catch (ApronException e) {
 			throw new RuntimeException(e);
 		}
+
+		logger.debug("w1: " + w1);
+		logger.debug("w2: " + w2);
+		logger.debug("w3: " + w3);
 	}
 
 	@Override
@@ -483,15 +489,54 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 			if (right instanceof JMulExpr && op1 instanceof JimpleLocal && op2 instanceof JimpleLocal) {
 				// first approximation: if op1 and op2 are both bounded, or if op takes one
 				// value
-				String varName1 = ((JimpleLocal) op1).getName();
-				String varName2 = ((JimpleLocal) op2).getName();
+				String opName1 = ((JimpleLocal) op1).getName();
+				String opName2 = ((JimpleLocal) op2).getName();
 
 				// assumption: you may ignore overflows in your implementation
+
+				// https://en.wikipedia.org/wiki/Interval_arithmetic
+				// [x₁, x₂] · [y₁, y₂] = [min{x₁y₁, x₁y₂, x₂y₁, x₂y₂}, max{x₁y₁, x₁y₂, x₂y₁, x₂y₂}]
+
+				Interval int1 = abstr.getBound(man, opName1);
+				Interval int2 = abstr.getBound(man, opName2);
 
 				// forget nodeLeft (set it to [-infty, infty])
 				abstr = abstr.forgetCopy(man, varNameLeft, false);
 
-				// TODO: implement the approximation
+				Interval int3 = new Interval();
+				if (int1.isBottom() || int2.isBottom()) {
+					int3.setBottom();
+				} else if (int1.isTop() || int2.isTop()) {
+					int3.setTop();
+				} else if (int1.isScalar() || int2.isScalar()) {
+					int3 = null;
+
+				    Scalar scalar;
+					String varName;
+					if (int1.isScalar()) {
+						scalar = int1.inf();
+						varName = opName2;
+					} else {
+						scalar = int2.inf();
+						varName = opName1;
+					}
+					Texpr1Node varNode = new Texpr1VarNode(varName);
+					Texpr1Node scalarNode = new Texpr1CstNode(scalar);
+					Texpr1Node varTimesScalar = new Texpr1BinNode(Texpr1BinNode.OP_MUL, Texpr1BinNode.RTYPE_INT,
+													Texpr1BinNode.RDIR_ZERO, varNode, scalarNode);
+					Texpr1Intern intern = new Texpr1Intern(env, varTimesScalar);
+					abstr = abstr.assignCopy(man, varNameLeft, intern, null);
+					
+				} else {
+					int3 = MultiplyIntervals(int1, int2);
+				}
+
+				if (int3 != null) {
+					String[] vars = {varNameLeft};
+					Interval[] box = {int3};
+					Abstract1 leftAbstract = new Abstract1(man, env, vars, box);
+					abstr = abstr.meetCopy(man, leftAbstract);
+				}
 
 			} else {
 
@@ -519,8 +564,8 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 				Texpr1Intern internRight = new Texpr1Intern(env, nodeRight);
 				abstr = abstr.assignCopy(man, varNameLeft, internRight, null);
 
-				logger.debug(node1.toString() + " " + node2.toString() + " => " + nodeRight);
-				logger.debug(internRight.toString());
+				// logger.debug(node1.toString() + " " + node2.toString() + " => " + nodeRight);
+				// logger.debug(internRight.toString());
 
 			}
 
@@ -562,6 +607,49 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
         Abstract1 joined = newState.joinCopy(man, oldState);
         Abstract1 widened = oldState.widening(man, joined);
         return widened;
+    }
+
+	private Interval MultiplyIntervals(Interval a, Interval b) {
+        // [x₁, x₂] · [y₁, y₂] = [min{x₁y₁, x₁y₂, x₂y₁, x₂y₂}, max{x₁y₁, x₁y₂, x₂y₁, x₂y₂}]
+        
+        // Calculate the four products
+        Scalar prod1 = MultiplyScalars(a.inf(), b.inf());
+        Scalar prod2 = MultiplyScalars(a.sup(), b.inf());
+        Scalar prod3 = MultiplyScalars(a.inf(), b.sup());
+        Scalar prod4 = MultiplyScalars(a.sup(), b.sup());
+        
+        // Determine the minimum and maximum of the products
+        Scalar min = prod1;
+        if (prod2.cmp(min) < 0) min = prod2;
+        if (prod3.cmp(min) < 0) min = prod3;
+        if (prod4.cmp(min) < 0) min = prod4;
+        
+        Scalar max = prod1;
+        if (prod2.cmp(max) > 0) max = prod2;
+        if (prod3.cmp(max) > 0) max = prod3;
+        if (prod4.cmp(max) > 0) max = prod4;
+        
+        // Return the resulting interval
+        return new Interval(min, max);
+    }
+
+    private Scalar MultiplyScalars(Scalar a, Scalar b) {
+        Scalar temp = new MpqScalar();
+        if (a.isInfty() * b.isInfty() != 0) { // i.e. a and b are both infinity
+            temp.setInfty(a.isInfty() * b.isInfty());
+        } else if (a.isZero() || b.isZero()) { // anything times 0 is 0, no need to think of limits ;D
+            temp.set(0);
+        } else if (a.isInfty() != 0 || b.isInfty() != 0) {
+            temp.setInfty(a.sgn() * b.sgn());
+        } else { // are finite
+            Mpq a_mpq = new Mpq();
+            ((MpqScalar) a).toMpq(a_mpq, 0);
+            Mpq b_mpq = new Mpq();
+            ((MpqScalar) b).toMpq(b_mpq, 0);
+            a_mpq.mul(b_mpq);
+            temp = new MpqScalar(a_mpq);
+        }
+        return temp;
     }
 
 	// for debugging
