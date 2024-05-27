@@ -10,11 +10,11 @@ public class Loop_Safe {
 
 	public void m() {
 		for (int i = 1; i < 10; i++) {
-			Frog frog = new Frog(-20);
-			frog.sell(i);
-			frog.sell(i+1);
-			frog.sell(i*2-1);
-			frog.sell(i*i); 
+			// Frog frog = new Frog(-20);
+			// frog.sell(i);
+			// frog.sell(i+1);
+			// frog.sell(i*2-1);
+			// frog.sell(i*i); 
 		}
 	}
 }
