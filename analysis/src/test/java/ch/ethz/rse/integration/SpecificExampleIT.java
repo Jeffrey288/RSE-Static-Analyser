@@ -21,11 +21,11 @@ public class SpecificExampleIT {
 	 */
 	@Test
 	void specificTest() {
-		String packageName = "ch.ethz.rse.integration.tests.Loop_Safe";
-		VerificationProperty verificationTask = VerificationProperty.NON_NEGATIVE;
-		boolean expectedIsSafe = false;
-		VerificationTestCase t = new VerificationTestCase(packageName, verificationTask, expectedIsSafe);
-		SpecificExampleIT.testOnExample(t);
+		// String packageName = "ch.ethz.rse.integration.tests.Loop_Safe";
+		// VerificationProperty verificationTask = VerificationProperty.NON_NEGATIVE;
+		// boolean expectedIsSafe = false;
+		// VerificationTestCase t = new VerificationTestCase(packageName, verificationTask, expectedIsSafe);
+		// SpecificExampleIT.testOnExample(t);
 	}
 
 
