@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import ch.ethz.rse.integration.Cheat;
 import gmp.Mpq;
 
 /**
@@ -208,12 +207,6 @@ public class ApronTest {
         Assertions.assertTrue(top.isEqual(man, nowTop));
     }
 
-    private Abstract1 widenFixed(Abstract1 oldState, Abstract1 newState) throws ApronException {
-        // apron requires explicit joining before widening
-        Abstract1 joined = newState.joinCopy(man, oldState);
-        Abstract1 widened = oldState.widening(man, joined);
-        return widened;
-    }
 
     ////////////////////////////////////
     // Adding variable to environment //
@@ -582,6 +575,151 @@ public class ApronTest {
             temp = new MpqScalar(a_mpq);
         }
         return temp;
+    }
+
+    @Test
+    public void WidenTest() throws ApronException {
+
+        // {  1i4 -1 = 0;  1FROG_OVERALL_PROFIT = 0 }
+        // {  -2$i0 +1$i2 +3 = 0;  -2$i0 +1$i1 +2 = 0;  -1$i0 +1i4 = 0;  -89$i0 -1$i3 +1FROG_OVERALL_PROFIT +94 >= 0;  -1$i0 +10 >= 0;  -1$i3 +81 >= 0;  1$i3 -1 >= 0;  3$i0 +1$i3 -1FROG_OVERALL_PROFIT +1434 >= 0;  1553$i0 +9$i3 -9FROG_OVERALL_PROFIT -2350 >= 0 }
+        // {  -6865FROG_OVERALL_PROFIT +1178829i4 -1178829 >= 0;  1FROG_OVERALL_PROFIT -85i4 +85 >= 0 }
+
+
+        // {  1i4 -1 = 0;  1FROG_OVERALL_PROFIT = 0 }
+        // {  -2i0 +1i2 +3 = 0;  -2i0 +1i1 +2 = 0;  -1i0 +1i4 = 0;  -9FROG_OVERALL_PROFIT +1553i0 +9i3 -2350 >= 0;  -1FROG_OVERALL_PROFIT +3i0 +1i3 +1434 >= 0;  -1i0 +10 >= 0;  -1i3 +81 >= 0;  1i3 -1 >= 0;  1FROG_OVERALL_PROFIT -89i0 -1i3 +94 >= 0 }
+        // {  -6865FROG_OVERALL_PROFIT +1178829i4 -1178829 >= 0;  1FROG_OVERALL_PROFIT -85i4 +85 >= 0 }
+
+        // Initialize the APRON manager
+        Manager man = new Polka(true);
+
+        // Define the environment with variables
+        String[] realVars = {"i0", "i1", "i2", "i3", "i4", "FROG_OVERALL_PROFIT"};
+        Environment env = new Environment(realVars, new String[]{});
+
+        // Create variables
+        Texpr1VarNode i0 = new Texpr1VarNode("i0");
+        Texpr1VarNode i1 = new Texpr1VarNode("i1");
+        Texpr1VarNode i2 = new Texpr1VarNode("i2");
+        Texpr1VarNode i3 = new Texpr1VarNode("i3");
+        Texpr1VarNode i4 = new Texpr1VarNode("i4");
+        Texpr1VarNode FROG_OVERALL_PROFIT = new Texpr1VarNode("FROG_OVERALL_PROFIT");
+
+        // Initialize an array for the constraints
+        Tcons1[] constraints = new Tcons1[13];
+
+        // Constraint set 1: { 1i4 -1 = 0;  1FROG_OVERALL_PROFIT = 0 }
+        Texpr1Node expr1_1 = new Texpr1BinNode(Texpr1BinNode.OP_SUB, i4, new Texpr1CstNode(new MpqScalar(1)));
+        constraints[0] = new Tcons1(env, Tcons1.EQ, expr1_1);
+
+        Texpr1Node expr1_2 = FROG_OVERALL_PROFIT;
+        constraints[1] = new Tcons1(env, Tcons1.EQ, expr1_2);
+
+        // Constraint set 2
+        Texpr1Node expr2_1 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+                new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-2)), i0),
+                new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(1)), i2)
+            ),
+            new Texpr1CstNode(new MpqScalar(3))
+        );
+        constraints[2] = new Tcons1(env, Tcons1.EQ, expr2_1);
+
+        Texpr1Node expr2_2 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+                new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-2)), i0),
+                new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(1)), i1)
+            ),
+            new Texpr1CstNode(new MpqScalar(2))
+        );
+        constraints[3] = new Tcons1(env, Tcons1.EQ, expr2_2);
+
+        Texpr1Node expr2_3 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-1)), i0),
+            i4
+        );
+        constraints[4] = new Tcons1(env, Tcons1.EQ, expr2_3);
+
+        Texpr1Node expr2_4 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+                new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+                    new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-89)), i0),
+                    new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-1)), i3)
+                ),
+                new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(1)), FROG_OVERALL_PROFIT)
+            ),
+            new Texpr1CstNode(new MpqScalar(94))
+        );
+        constraints[5] = new Tcons1(env, Tcons1.SUPEQ, expr2_4);
+
+        Texpr1Node expr2_5 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-1)), i0),
+            new Texpr1CstNode(new MpqScalar(10))
+        );
+        constraints[6] = new Tcons1(env, Tcons1.SUPEQ, expr2_5);
+
+        Texpr1Node expr2_6 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-1)), i3),
+            new Texpr1CstNode(new MpqScalar(81))
+        );
+        constraints[7] = new Tcons1(env, Tcons1.SUPEQ, expr2_6);
+
+        Texpr1Node expr2_7 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(1)), i3),
+            new Texpr1CstNode(new MpqScalar(-1))
+        );
+        constraints[8] = new Tcons1(env, Tcons1.SUPEQ, expr2_7);
+
+        Texpr1Node expr2_8 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+                new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+                    new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(3)), i0),
+                    new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(1)), i3)
+                ),
+                new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-1)), FROG_OVERALL_PROFIT)
+            ),
+            new Texpr1CstNode(new MpqScalar(1434))
+        );
+        constraints[9] = new Tcons1(env, Tcons1.SUPEQ, expr2_8);
+
+        Texpr1Node expr2_9 = new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+            new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+                new Texpr1BinNode(Texpr1BinNode.OP_ADD,
+                    new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(1553)), i0),
+                    new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(9)), i3)
+                ),
+                new Texpr1BinNode(Texpr1BinNode.OP_MUL, new Texpr1CstNode(new MpqScalar(-9)), FROG_OVERALL_PROFIT)
+            ),
+            new Texpr1CstNode(new MpqScalar(-2350))
+        );
+        constraints[10] = new Tcons1(env, Tcons1.SUPEQ, expr2_9);
+
+        // Initialize an abstract domain (e.g., Polyhedron) to add constraints
+        Abstract1 abs1 = new Abstract1(man, env);
+        Abstract1 abs2 = new Abstract1(man, env);
+
+        // Add all constraints to the abstract domain
+        for (int i = 0; i <= 1; i++) {
+            abs1.meet(man, constraints[i]);
+        }
+
+        for (int i = 2; i <= 10; i++) {
+            abs2.meet(man, constraints[i]);
+        }
+
+        Abstract1 abs3 = widenFixed(abs1, abs2);
+
+        logger.debug(abs1.toString());
+        logger.debug(abs2.toString());
+        logger.debug(abs3.toString());
+
+
+    }
+
+    private Abstract1 widenFixed(Abstract1 oldState, Abstract1 newState) throws ApronException {
+        // apron requires explicit joining before widening
+        Abstract1 joined = newState.joinCopy(man, oldState);
+        Abstract1 widened = oldState.widening(man, joined);
+        return widened;
     }
 
 }

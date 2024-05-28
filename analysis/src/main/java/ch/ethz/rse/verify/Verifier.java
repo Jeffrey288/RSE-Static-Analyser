@@ -211,9 +211,12 @@ public class Verifier extends AVerifier {
 					if (unit instanceof JReturnVoidStmt) {
 						if (!abs.isBottom(analysis.man)) { // if abs is empty, then this statement cannot be reached
 							Scalar lowerBound = abs.getBound(analysis.man, "FROG_OVERALL_PROFIT").inf();
-							if (lowerBound.cmp(0) == -1) { // is negative
+							Scalar lowerBoundInterval = abs.getBound(analysis.man, "FROG_OVERALL_PROFIT_INTERVAL").inf();
+							if (lowerBound.cmp(0) == -1 && lowerBoundInterval.cmp(0) == -1) { // is negative
 								return false;
 							}
+							// note that both lowerBound and lowerBoundInterval are OVER_APPROXIMATIONS of the actual lower bound
+							// i.e. lowerBound < actual && lowerBoundInterval < actual
 						}
 					}
 				} catch (ApronException e) {

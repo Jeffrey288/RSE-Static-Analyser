@@ -13,9 +13,11 @@ import org.slf4j.LoggerFactory;
 import apron.Abstract1;
 import apron.ApronException;
 import apron.Coeff;
+import apron.DoubleScalar;
 import apron.Environment;
 import apron.Interval;
 import apron.Manager;
+import apron.MpfrScalar;
 import apron.MpqScalar;
 import apron.Polka;
 import apron.Scalar;
@@ -136,8 +138,10 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 		this.env = new EnvironmentGenerator(method, pointsTo).getEnvironment();
 
 		// initialize counts for loop heads
+		logger.debug("Loop heads:");
 		for (Loop l : new LoopNestTree(g.getBody())) {
 			loopHeads.put(l.getHead(), new IntegerWrapper(0));
+			logger.debug(l.getHead().toString());
 		}
 
 		// perform analysis by calling into super-class
@@ -192,6 +196,7 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 			Abstract1 abs = ret.get();
 			Texpr1Intern intern = new Texpr1Intern(env, new Texpr1CstNode(new MpqScalar(0)));
 			abs = abs.assignCopy(man, "FROG_OVERALL_PROFIT", intern, null);
+			abs = abs.assignCopy(man, "FROG_OVERALL_PROFIT_INTERVAL", intern, null);
 			ret.set(abs);
 		} catch (ApronException e) {
 			throw new RuntimeException(e);
@@ -205,22 +210,10 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 		// merge the two states from w1 and w2 and store the result into w3
 		
 		// TODO: FILL THIS OUT
-		boolean isLoop = loopHeads.containsKey(succNode);
-		int num_iters = 0;
-		if (isLoop) {
-			num_iters = loopHeads.get(succNode).value++;
-			logger.debug("in merge: " + succNode + ", visited " + num_iters + " times");
-		} else {
-			logger.debug("in merge: " + succNode);
-		}
+		logger.debug("in merge: " + succNode);
 		
 		try {
-			if (isLoop && num_iters > WIDENING_THRESHOLD) {
-				w3.set(this.widenFixed(w1.get(), w2.get())); // widening
-			} else {
-				// should be join, because we want to overapproximate
-				w3.set(w1.get().joinCopy(man, w2.get())); // joining
-			}
+			w3.set(w1.get().joinCopy(man, w2.get())); // joining
 		} catch (ApronException e) {
 			throw new RuntimeException(e);
 		}
@@ -239,22 +232,68 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 	@Override
 	protected void flowThrough(NumericalStateWrapper inWrapper, Unit op, List<NumericalStateWrapper> fallOutWrappers,
 			List<NumericalStateWrapper> branchOutWrappers) {
-		logger.debug(inWrapper + " " + op + " => ?");
+		try {
+			logger.debug(
+				inWrapper + 
+				" " +  inWrapper.get().getBound(man, "FROG_OVERALL_PROFIT") + inWrapper.get().getBound(man, "FROG_OVERALL_PROFIT_INTERVAL")  + " " + op + " => ?");
+		} catch (ApronException e) {
+			throw new RuntimeException(e);
+		}
+		
+		// TODO: FILL THIS OUT
+		// Apply widening
+		if (loopHeads.containsKey(op)) { // is a loop head
+			int num_iters = loopHeads.get(op).value++;
+			if (num_iters > WIDENING_THRESHOLD) {
+				try {
+					Abstract1 prevState = loopHeadState.get(op).get();
+					Abstract1 curState = inWrapper.get();
 
-		// TODO: delete later, is used to test stuff
-		// if (unitState.containsKey(op)) {
-		// 	NumericalStateWrapper state = unitState.get(op);
-		// 	try {
-		// 		if (state.get().isIncluded(man, inWrapper.get())) {
-		// 			throw new RuntimeException("inWrapper not included in state");
-		// 		}
-		// 	} catch (ApronException e) {
-		// 		throw new RuntimeException(e);
-		// 	}
-		// }
-		// store the state
-		// unitState.put(op, inWrapper);
+					// widen an interval
+					Interval prev_profit_range = prevState.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL");
+					Interval cur_profit_range = prevState.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL");
+					Interval widened_profit_range = new Interval(prev_profit_range);
+					if (prev_profit_range.isBottom() || cur_profit_range.isBottom()) {
+						// widening approximates a join, so just fallback to join if they are bottom
+						if (prev_profit_range.isBottom()) {
+							widened_profit_range = cur_profit_range;
+						} else {
+							widened_profit_range = prev_profit_range;
+						}
+					} else {
+						if (cur_profit_range.inf().cmp(prev_profit_range.inf()) == -1) {
+							widened_profit_range.setInf(new DoubleScalar(Double.NEGATIVE_INFINITY));
+						}
+						if (cur_profit_range.sup().cmp(prev_profit_range.sup()) == 1) {
+							widened_profit_range.setSup(new DoubleScalar(Double.POSITIVE_INFINITY));
+						}			
+					}
 
+					prevState = prevState.forgetCopy(man, "FROG_OVERALL_PROFIT_INTERVAL", false);
+					Abstract1 widened = this.widenFixed(prevState, curState);
+
+					String[] vars = {"FROG_OVERALL_PROFIT_INTERVAL"};
+					Interval[] box = {widened_profit_range};
+					Abstract1 intervalAbstract = new Abstract1(man, env, vars, box);
+					widened = widened.meetCopy(man, intervalAbstract);
+					
+					logger.debug("Applying widening:");
+					logger.debug("prev: " + prevState);
+					logger.debug("cur : " + inWrapper.get());
+					logger.debug("res : " + widened);
+					logger.debug("prevBound: " + prevState.getBound(man, "FROG_OVERALL_PROFIT") + prev_profit_range);
+					logger.debug("curBound : " + curState.getBound(man, "FROG_OVERALL_PROFIT") + cur_profit_range);
+					logger.debug("resBound : " + widened.getBound(man, "FROG_OVERALL_PROFIT") + widened_profit_range);
+
+					inWrapper = new NumericalStateWrapper(man, widened);
+					
+				} catch (ApronException e) {
+					throw new RuntimeException(e);
+				}
+			}
+			loopHeadState.put(op, inWrapper);
+		}
+		
 		Stmt s = (Stmt) op;
 
 		// fallOutWrapper is the wrapper for the state after running op,
@@ -403,10 +442,18 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 			// log outcome
 			if (fallOutWrapper != null) {
-				logger.debug(inWrapper.get() + " " + s + " =>[fallout] " + fallOutWrapper);
+				logger.debug(
+					inWrapper.get() + 
+					" " + inWrapper.get().getBound(man, "FROG_OVERALL_PROFIT") + inWrapper.get().getBound(man, "FROG_OVERALL_PROFIT_INTERVAL")  + " " + s + " =>[fallout] " + 
+					fallOutWrapper + 
+					" " + fallOutWrapper.get().getBound(man, "FROG_OVERALL_PROFIT") + fallOutWrapper.get().getBound(man, "FROG_OVERALL_PROFIT_INTERVAL"));
 			}
 			if (branchOutWrapper != null) {
-				logger.debug(inWrapper.get() + " " + s + " =>[branchout] " + branchOutWrapper);
+				logger.debug(
+					inWrapper.get() +
+					" " + inWrapper.get().getBound(man, "FROG_OVERALL_PROFIT") + inWrapper.get().getBound(man, "FROG_OVERALL_PROFIT_INTERVAL")  + " " + s + " =>[branchout] " + 
+					branchOutWrapper + 
+					" " + branchOutWrapper.get().getBound(man, "FROG_OVERALL_PROFIT") + branchOutWrapper.get().getBound(man, "FROG_OVERALL_PROFIT_INTERVAL"));
 			}
 
 		} catch (ApronException e) {
@@ -420,7 +467,7 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 			// TODO: MAYBE FILL THIS OUT
 
 			// Frog.total_profit += (price - this.production_cost);
-			// min(total_profit) = min(price) - max(production_cost)
+			// min(total_profit) = min(total_profit) + min(price) - max(production_cost)
 
 			Abstract1 abs = fallOutWrapper.get();
 
@@ -444,7 +491,47 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 			Texpr1Intern intern = new Texpr1Intern(env, totalPlusArgSubCost);
 			
 			abs = abs.assignCopy(man, "FROG_OVERALL_PROFIT", intern, null);
+
+			// getting bounds is an over-approximation
+			// min(total_profit) = min(total_profit) + min(price) - max(production_cost)
+			Interval profit_range = abs.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL"); // do this independently from the Polyhedral domain
+			Interval sell_range = abs.getBound(man, new Texpr1Intern(env, argNode));
+			Interval profitPlusSell = AddIntervals(profit_range, sell_range);
+			Interval resInterval = AddIntervals(profitPlusSell, new Interval(-max_cost, -max_cost));
+			
+			// whenever interval over-approximates too much, we can refine it with the polyhedral solution:
+			// whatever is in interval that is not in polyhedral can go away
+			// i.e. interval' = interval - !polyhedral
+			Interval polyhedralInterval = abs.getBound(man, "FROG_OVERALL_PROFIT");
+
+			if (polyhedralInterval.isLeq(resInterval)) {
+				resInterval = polyhedralInterval;
+			} else if (polyhedralInterval.isBottom() || resInterval.isBottom()) {
+				resInterval.setBottom();
+			} else {
+				/*
+				 * 				======== 		interval
+				 * 			------    ------	polyhedral
+				 * 				==    ==		result
+				 */
+				if (polyhedralInterval.inf().cmp(resInterval.inf()) == -1 && polyhedralInterval.sup().cmp(resInterval.inf()) == 1) {
+					resInterval.setSup(polyhedralInterval.sup());
+				} else if (polyhedralInterval.sup().cmp(resInterval.sup()) == 1 && polyhedralInterval.inf().cmp(resInterval.sup()) == -1) {
+					resInterval.setInf(polyhedralInterval.inf());
+				}
+			}
+			
+			String[] vars = {"FROG_OVERALL_PROFIT_INTERVAL"};
+			Interval[] box = {resInterval};
+			Abstract1 intervalAbstract = new Abstract1(man, env, vars, box);
+			abs = abs.forgetCopy(man, "FROG_OVERALL_PROFIT_INTERVAL", false);
+			abs = abs.meetCopy(man, intervalAbstract);
+
 			fallOutWrapper.set(abs);
+
+			logger.debug("Range of total profit: " + abs.getBound(man, "FROG_OVERALL_PROFIT").toString());
+			logger.debug("Over-approximation   : " + abs.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL").toString());
+
 		}
 	}
 
@@ -463,7 +550,7 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 	private void handleDef(NumericalStateWrapper outWrapper, Value left, Value right) throws ApronException {
 		// TODO: FILL THIS OUT
 		// assumption: left != right
-		if (left == right) {
+		if (left.equals(right)) {
 			logger.debug("left == right!");
 			return;
 		}
@@ -500,9 +587,6 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 				Interval int1 = abstr.getBound(man, opName1);
 				Interval int2 = abstr.getBound(man, opName2);
 
-				// forget nodeLeft (set it to [-infty, infty])
-				abstr = abstr.forgetCopy(man, varNameLeft, false);
-
 				Interval int3 = new Interval();
 				if (int1.isBottom() || int2.isBottom()) {
 					int3.setBottom();
@@ -535,6 +619,8 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 					String[] vars = {varNameLeft};
 					Interval[] box = {int3};
 					Abstract1 leftAbstract = new Abstract1(man, env, vars, box);
+					// forget left, then meet
+					abstr = abstr.forgetCopy(man, varNameLeft, false);
 					abstr = abstr.meetCopy(man, leftAbstract);
 				}
 
@@ -557,15 +643,9 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 					unhandled("Unhandled binary operation", right, true);
 				}
 
-				// forget nodeLeft
-				abstr = abstr.forgetCopy(man, varNameLeft, false);
-
 				// assign new value
 				Texpr1Intern internRight = new Texpr1Intern(env, nodeRight);
 				abstr = abstr.assignCopy(man, varNameLeft, internRight, null);
-
-				// logger.debug(node1.toString() + " " + node2.toString() + " => " + nodeRight);
-				// logger.debug(internRight.toString());
 
 			}
 
@@ -576,7 +656,6 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 			Texpr1Node nodeRight = getNodeFromOp(right);
 			Texpr1Intern internRight = new Texpr1Intern(env, nodeRight);
-			abstr = abstr.forgetCopy(man, varNameLeft, false);
 			abstr = abstr.assignCopy(man, varNameLeft, internRight, null);
 
 		} else if (right instanceof JNegExpr) { // not necessary
@@ -607,6 +686,39 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
         Abstract1 joined = newState.joinCopy(man, oldState);
         Abstract1 widened = oldState.widening(man, joined);
         return widened;
+    }
+
+	private Interval AddIntervals(Interval a, Interval b) {
+        // [x₁, x₂] + [y₁, y₂] = [x₁ + y₁, x₂ + y₂]
+
+		Interval temp = new Interval();
+
+		// make sure we don't add -inf to +inf
+		if (a.inf().isInfty() * b.inf().isInfty() == -1 || a.inf().isInfty() * b.inf().isInfty() == -1) {
+			temp.setTop();
+		} else {
+			temp = new Interval(AddScalars(a.inf(), b.inf()), AddScalars(a.sup(), b.sup()));
+		}
+        
+        // Return the resulting interval
+        return temp;
+    }
+
+	private Scalar AddScalars(Scalar a, Scalar b) { // undefined for +infty, -infty
+        Scalar temp = new MpqScalar();
+        if (a.isInfty() != 0) {
+			temp = a;
+		} else if (b.isInfty() != 0) {
+			temp = b;
+        } else { // are finite
+            Mpq a_mpq = new Mpq();
+            ((MpqScalar) a).toMpq(a_mpq, 0);
+            Mpq b_mpq = new Mpq();
+            ((MpqScalar) b).toMpq(b_mpq, 0);
+            a_mpq.add(b_mpq);
+            temp = new MpqScalar(a_mpq);
+        }
+        return temp;
     }
 
 	private Interval MultiplyIntervals(Interval a, Interval b) {
@@ -651,8 +763,5 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
         }
         return temp;
     }
-
-	// for debugging
-	private HashMap<Unit, NumericalStateWrapper> unitState = new HashMap<Unit, NumericalStateWrapper>();
 
 }

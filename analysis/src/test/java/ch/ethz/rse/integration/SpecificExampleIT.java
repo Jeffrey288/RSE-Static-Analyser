@@ -21,13 +21,12 @@ public class SpecificExampleIT {
 	 */
 	@Test
 	void specificTest() {
-		// String packageName = "ch.ethz.rse.integration.tests.Loop_Safe";
-		// VerificationProperty verificationTask = VerificationProperty.NON_NEGATIVE;
-		// boolean expectedIsSafe = false;
-		// VerificationTestCase t = new VerificationTestCase(packageName, verificationTask, expectedIsSafe);
-		// SpecificExampleIT.testOnExample(t);
+		String packageName = "ch.ethz.rse.integration.tests.Loop_Simplified";
+		VerificationProperty verificationTask = VerificationProperty.OVERALL_PROFIT;
+		boolean expectedIsSafe = true;
+		VerificationTestCase t = new VerificationTestCase(packageName, verificationTask, expectedIsSafe);
+		SpecificExampleIT.testOnExample(t);
 	}
-
 
 	private static final Logger logger = LoggerFactory.getLogger(SpecificExampleIT.class);
 

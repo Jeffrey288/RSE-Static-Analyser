@@ -59,11 +59,12 @@ public class EnvironmentGenerator {
 		logger.debug("Building environment...");
 		for (Local local: this.method.getActiveBody().getLocals()) {
 			logger.debug(local.getName() + " " + local.getType().toString());
-			if (SootHelper.isIntValue((Value) local)) {
+			if (SootHelper.isIntValue((Value) local) || local.getType().toString().equals("boolean")) {
 				this.ints.add(local.getName());
 			}
 		}
 		this.ints.add("FROG_OVERALL_PROFIT");
+		this.ints.add("FROG_OVERALL_PROFIT_INTERVAL");
 		
 		logger.debug(this.ints.toString());
 		String ints_arr[] = Iterables.toArray(this.ints, String.class);
