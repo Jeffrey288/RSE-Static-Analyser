@@ -22,7 +22,7 @@ public class SpecificExampleIT {
 	@Test
 	void specificTest() {
 		String packageName = "ch.ethz.rse.integration.tests.Loop_Simplified";
-		VerificationProperty verificationTask = VerificationProperty.OVERALL_PROFIT;
+		VerificationProperty verificationTask = VerificationProperty.NON_NEGATIVE;
 		boolean expectedIsSafe = true;
 		VerificationTestCase t = new VerificationTestCase(packageName, verificationTask, expectedIsSafe);
 		SpecificExampleIT.testOnExample(t);
