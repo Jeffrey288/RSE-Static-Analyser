@@ -13,7 +13,7 @@
 		</encoder>
 		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
 			<!-- Log level for console. Levels are TRACE < DEBUG < INFO <  WARN < ERROR-->
-			<level>TRACE</level>
+			<level>INFO</level>
 		</filter>
 	</appender>
 
