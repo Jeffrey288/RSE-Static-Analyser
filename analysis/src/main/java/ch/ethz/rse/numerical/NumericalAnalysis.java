@@ -218,9 +218,9 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 			throw new RuntimeException(e);
 		}
 
-		logger.debug("w1: " + w1);
-		logger.debug("w2: " + w2);
-		logger.debug("w3: " + w3);
+		// logger.debug("w1: " + w1);
+		// logger.debug("w2: " + w2);
+		// logger.debug("w3: " + w3);
 	}
 
 	@Override
@@ -277,13 +277,13 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 					Abstract1 intervalAbstract = new Abstract1(man, env, vars, box);
 					widened = widened.meetCopy(man, intervalAbstract);
 					
-					logger.debug("Applying widening:");
-					logger.debug("prev: " + prevState);
-					logger.debug("cur : " + inWrapper.get());
-					logger.debug("res : " + widened);
-					logger.debug("prevBound: " + prevState.getBound(man, "FROG_OVERALL_PROFIT") + prev_profit_range);
-					logger.debug("curBound : " + curState.getBound(man, "FROG_OVERALL_PROFIT") + cur_profit_range);
-					logger.debug("resBound : " + widened.getBound(man, "FROG_OVERALL_PROFIT") + widened_profit_range);
+					logger.debug("Applying widening...");
+					// logger.debug("prev: " + prevState);
+					// logger.debug("cur : " + inWrapper.get());
+					// logger.debug("res : " + widened);
+					// logger.debug("prevBound: " + prevState.getBound(man, "FROG_OVERALL_PROFIT") + prev_profit_range);
+					// logger.debug("curBound : " + curState.getBound(man, "FROG_OVERALL_PROFIT") + cur_profit_range);
+					// logger.debug("resBound : " + widened.getBound(man, "FROG_OVERALL_PROFIT") + widened_profit_range);
 
 					inWrapper = new NumericalStateWrapper(man, widened);
 					
@@ -529,8 +529,8 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 			fallOutWrapper.set(abs);
 
-			logger.debug("Range of total profit: " + abs.getBound(man, "FROG_OVERALL_PROFIT").toString());
-			logger.debug("Over-approximation   : " + abs.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL").toString());
+			// logger.debug("Range of total profit: " + abs.getBound(man, "FROG_OVERALL_PROFIT").toString());
+			// logger.debug("Over-approximation   : " + abs.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL").toString());
 
 		}
 	}
