@@ -86,12 +86,12 @@ public class Verifier extends AVerifier {
 				continue;
 			}
 
-			// // For debug, print the whole program
-			// logger.debug("-=-=-" + method.getName() + "-=-=-");
-			// for (Unit unit : method.getActiveBody().getUnits()) { // a statement
-			// 	logger.debug(unit.toString());
-			// }
-			// logger.debug("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-");
+			// For debug, print the whole program
+			logger.debug("-=-=-" + method.getName() + "-=-=-");
+			for (Unit unit : method.getActiveBody().getUnits()) { // a statement
+				logger.debug(unit.toString());
+			}
+			logger.debug("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-");
 
 			numericalAnalysis.put(method, new NumericalAnalysis(method, property, pointsTo));
 

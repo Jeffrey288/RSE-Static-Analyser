@@ -84,26 +84,26 @@ public class PointsToInitializer {
 			for (Unit unit: method.getActiveBody().getUnits()) { // a statement
 				logger.debug(unit.toString());
 				if (unit instanceof JInvokeStmt) { // assumpiton: .sell or constructor
-					// logger.debug("We have a JInvokeStmt!");
+					logger.debug("We have a JInvokeStmt!");
 					JInvokeStmt stmt = (JInvokeStmt) unit;
 					InvokeExpr invokeExpr = stmt.getInvokeExpr();
 					if (invokeExpr instanceof JSpecialInvokeExpr) {
-						// logger.debug("We have a JSpecialInvokeExpr!");
+						logger.debug("We have a JSpecialInvokeExpr!");
 						JSpecialInvokeExpr expr = (JSpecialInvokeExpr) invokeExpr;
 						if (isRelevantInit(expr)) {
 							// assumption: the constructor Frog takes as arguments (production_cost) only integer constants (never local variables)
 							// 		you can put a constant expression in the constructor in the master solution, but still
 							//		it works: new Frog((int) (1+3/4.0+2)*1); is converted to specialinvoke $r0.<ch.ethz.rse.Frog: void <init>(int)>(3)
-							// logger.debug(expr.toString());
-							// logger.debug(expr.getArg(0).toString());
-							// logger.debug("" + ((IntConstant) expr.getArg(0)).value);
+							logger.debug(expr.toString());
+							logger.debug(expr.getArg(0).toString());
+							logger.debug("" + ((IntConstant) expr.getArg(0)).value);
 							FrogInitializer initializer = new FrogInitializer(stmt, num_initializers++, ((IntConstant) expr.getArg(0)).value);
 							perMethod.put(method, initializer);
 							
 							// Node: Represents every node in the pointer assignment graph.
 							// https://plg.uwaterloo.ca/~olhotak/pubs/cc03.pdf#page=4
-							// logger.debug(expr.getBase().toString());
-							// logger.debug(getAllocationNodes(expr).toString());
+							logger.debug(expr.getBase().toString());
+							logger.debug(getAllocationNodes(expr).toString());
 							for (Node node: getAllocationNodes(expr)) {
 								initializers.put(node, initializer);
 							}
