@@ -5,7 +5,7 @@ import ch.ethz.rse.Frog;
 // expected results:
 // NON_NEGATIVE SAFE
 // ITEM_PROFIT SAFE
-// OVERALL_PROFIT SAFE
+// OVERALL_PROFIT UNSAFE (SAFE)
 public class Loop_Simplified {
 
 	public void m() {

@@ -442,6 +442,16 @@ public class ApronTest {
         }
     }
 
+
+    @Test
+    public void NegateIntervalTest() throws ApronException{
+
+        Interval interval = new Interval(-1, 2);
+        interval.neg();
+        Assertions.assertTrue(interval.toString().equals("[-2,1]"));
+        
+    }
+
     @Test
     public void IntervalTest() throws ApronException {
 

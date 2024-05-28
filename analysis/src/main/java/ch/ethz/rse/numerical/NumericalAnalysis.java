@@ -251,7 +251,7 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 					// widen an interval
 					Interval prev_profit_range = prevState.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL");
-					Interval cur_profit_range = prevState.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL");
+					Interval cur_profit_range = curState.getBound(man, "FROG_OVERALL_PROFIT_INTERVAL");
 					Interval widened_profit_range = new Interval(prev_profit_range);
 					if (prev_profit_range.isBottom() || cur_profit_range.isBottom()) {
 						// widening approximates a join, so just fallback to join if they are bottom
@@ -269,6 +269,8 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 						}			
 					}
 
+					// forget before passing into widened, because we don't want it to
+					// cause any further undesired overapproximations
 					prevState = prevState.forgetCopy(man, "FROG_OVERALL_PROFIT_INTERVAL", false);
 					Abstract1 widened = this.widenFixed(prevState, curState);
 
@@ -277,15 +279,15 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 					Abstract1 intervalAbstract = new Abstract1(man, env, vars, box);
 					widened = widened.meetCopy(man, intervalAbstract);
 					
+					inWrapper = new NumericalStateWrapper(man, widened);
+
 					logger.debug("Applying widening:");
 					logger.debug("prev: " + prevState);
-					logger.debug("cur : " + inWrapper.get());
+					logger.debug("cur : " + curState);
 					logger.debug("res : " + widened);
 					logger.debug("prevBound: " + prevState.getBound(man, "FROG_OVERALL_PROFIT") + prev_profit_range);
 					logger.debug("curBound : " + curState.getBound(man, "FROG_OVERALL_PROFIT") + cur_profit_range);
 					logger.debug("resBound : " + widened.getBound(man, "FROG_OVERALL_PROFIT") + widened_profit_range);
-
-					inWrapper = new NumericalStateWrapper(man, widened);
 					
 				} catch (ApronException e) {
 					throw new RuntimeException(e);
@@ -503,7 +505,13 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 			// whatever is in interval that is not in polyhedral can go away
 			// i.e. interval' = interval - !polyhedral
 			Interval polyhedralInterval = abs.getBound(man, "FROG_OVERALL_PROFIT");
-
+			
+			logger.debug("profit_range: " + profit_range.toString());
+			logger.debug("sell_range: " + sell_range.toString());
+			logger.debug("max_cost: " + max_cost);
+			logger.debug("polyhedralInterval: " + polyhedralInterval.toString());
+			logger.debug("resInterval: " + resInterval.toString());
+			logger.debug("include: " + (polyhedralInterval.isLeq(resInterval) ? "yes" : "no"));
 			if (polyhedralInterval.isLeq(resInterval)) {
 				resInterval = polyhedralInterval;
 			} else if (polyhedralInterval.isBottom() || resInterval.isBottom()) {
@@ -693,8 +701,10 @@ public class NumericalAnalysis extends ForwardBranchedFlowAnalysis<NumericalStat
 
 		Interval temp = new Interval();
 
-		// make sure we don't add -inf to +inf
-		if (a.inf().isInfty() * b.inf().isInfty() == -1 || a.inf().isInfty() * b.inf().isInfty() == -1) {
+		if (a.isBottom() || b.isBottom()) {
+			temp.setBottom();
+		} else if (a.inf().isInfty() * b.inf().isInfty() == -1 || a.sup().isInfty() * b.sup().isInfty() == -1) {
+			// make sure we don't add -inf to +inf
 			temp.setTop();
 		} else {
 			temp = new Interval(AddScalars(a.inf(), b.inf()), AddScalars(a.sup(), b.sup()));
