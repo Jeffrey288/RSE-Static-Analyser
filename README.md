@@ -1,3 +1,29 @@
+# Java Static Program Analyzer
+
+This project analyses a Java program statically using numerical (polyhedral domain) and pointer analysis methods and checks whether the program outcomes satisfy certain conditions.
+
+For example, for the following program, we should expect the analyser to realise that
+- all frogs are sold at a non-negative price,
+- **not** all frogs are sold at a non-negative profit, but
+- the **overall profit** is positive.
+```Java
+public void m() {
+  for (int i = 1; i < 10; i++) {
+    Frog frog = new Frog(/*price=*/ 3);
+    frog.sell(i);
+    frog.sell(i+1);
+    frog.sell(i*2-1);
+    frog.sell(i*i); 
+  }
+}
+```
+
+For more test cases, please see [here](/analysis/src/test/java/ch/ethz/rse/integration/tests/Loop_Safe.java).
+
+Please review the [project description](/resources/project-description/project.md) for the project's specifics, include the tech stack and assumptions.
+
+--------------------------------
+
 # RSE Project Development
 
 In this file, we explain how to set up, run, and develop this project. Before
