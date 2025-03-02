@@ -2,7 +2,7 @@
 
 This project analyses a Java program statically using numerical (polyhedral domain) and pointer analysis methods and checks whether the program outcomes satisfy certain conditions.
 
-The project uses Soot for parsing Java code, APRON for numerical analysis. Maven is used for building and testing, and JaCoCo is used for coverage tests.
+It uses Soot for parsing Java code, and APRON for numerical analysis. Maven is used for building and testing, and JaCoCo is used for coverage tests.
 
 For example, for the following program, we should expect the analyser to realise that
 - all frogs are sold at a non-negative price,
@@ -22,7 +22,9 @@ public void m() {
 
 For more test cases, please see [here](/analysis/src/test/java/ch/ethz/rse/integration/tests/Loop_Safe.java).
 
-Please review the [project description](/resources/project-description/project.md) for the project's specifics, include the tech stack and assumptions.
+This is a course project for the course **Rigorous Software Engineering** at ETH Zurich. My implementation has scored full marks, and you may see the newest commit in the `grading` branch for more information.
+
+Please review the [project description](/resources/project-description/project.md) for the specifics, including the tech stack and assumptions.
 
 --------------------------------
 
