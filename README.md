@@ -1,5 +1,7 @@
 # Java Static Program Analyzer
 
+**Link to code: [here](analysis/src/main/java/ch/ethz/rse)**
+
 This project analyses a Java program statically using numerical (polyhedral domain) and pointer analysis methods and checks whether the program outcomes satisfy certain conditions.
 
 It uses Soot for parsing Java code, and APRON for numerical analysis. Maven is used for building and testing, and JaCoCo is used for coverage tests.
